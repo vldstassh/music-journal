@@ -30,11 +30,45 @@ reloading:
 localStorage.musicJournalApiBase = "http://localhost:3000";
 ```
 
-## Planned Backend Support
+## Backend
 
-The backend is expected to handle:
+The `back-end` branch contains a node.js Express server for handling user authentication and music journal entries:
 
-- User signup and login.
-- Private journal entries.
-- Mood, song, note, and timestamp storage.
-- API endpoints for creating and reading mood entries.
+- User signup and login with session management using cookies.
+- API endpoints for creating and retrieving journal entries.
+- Full connection to MongoDB atlas for storing user accounts and journal entries, with Mongodb native driver.
+
+# How to use the backend for development:
+- In order to retrive and create journal entries, you need to be logged in. You can use the signup and login endpoints to create an account and log in.
+
+- Endpoint: `http://localhost:3000/api/signup`
+- To signup, send a POST request with JSON body containing:
+```json
+{
+    "username": "your username",
+    "password": "your password"
+}
+```
+
+- Endpoint: `http://localhost:3000/api/login`
+- To login, send a POST request with JSON body containing:
+```json
+{
+    "username": "your username",
+    "password": "your password"
+}
+```
+- After successful login the server will set a cookie in the browser to maintain the session. If you shut down the server, the cookie will be cleared and you will need to log in again to access the journal entry endpoints.
+
+- Enpoint: `http://localhost:3000/api/moods` 
+- To create a new journal entry (requires login), send a POST request with JSON body containing:
+```json
+{
+    "mood": "joy",
+    "songTitle": "song title",
+    "artist": "artist",
+    "note": "test note"
+}
+```
+
+- To retrieve all journal entries for the logged-in user, send a GET request to the same endpoint at `http://localhost:3000/api/moods`.

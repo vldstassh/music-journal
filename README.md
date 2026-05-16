@@ -15,7 +15,7 @@ patterns.
 
 The root of this repository contains a static HTML/CSS/JS interface for the main journal experience:
 
-- Basic `login.html` page that posts to `/api/login` and redirects to `index.html` after a successful login.
+- Basic `login.html` page for login and signup, redirecting to `index.html` after successful authentication.
 - Mood selection with visual options and an intensity slider.
 - Song title, artist, optional link, and journal note fields.
 - Timeline history, mood filtering, summary stats, export, and local offline storage.

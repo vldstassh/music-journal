@@ -447,6 +447,28 @@ input[type="range"] {
 	font-size: clamp(2.2rem, 12vw, 4.6rem);
 }
 
+.auth-tabs {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+	margin-top: 18px;
+}
+
+.auth-tab {
+	min-height: 42px;
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: var(--surface-strong);
+	color: var(--muted);
+	font-weight: 900;
+}
+
+.auth-tab.is-active {
+	border-color: var(--accent);
+	background: #e8f1ee;
+	color: var(--accent-strong);
+}
+
 .login-message {
 	text-align: left;
 }

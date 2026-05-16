@@ -7,11 +7,15 @@
 		<link rel="stylesheet" href="styles.css">
 	</head>
 	<body>
-		<main class="login-shell" aria-labelledby="loginTitle">
+		<main class="login-shell" aria-labelledby="authTitle">
 			<section class="login-panel">
 				<p class="eyebrow">Music Journal</p>
-				<h1 id="loginTitle">Login</h1>
-				<form id="loginForm" class="journal-form">
+				<h1 id="authTitle">Login</h1>
+				<div class="auth-tabs" role="tablist" aria-label="Account action">
+					<button class="auth-tab is-active" type="button" data-auth-mode="login" role="tab" aria-selected="true">Login</button>
+					<button class="auth-tab" type="button" data-auth-mode="signup" role="tab" aria-selected="false">Sign up</button>
+				</div>
+				<form id="authForm" class="journal-form">
 					<label>
 						<span>Email</span>
 						<input name="email" type="email" autocomplete="email" required>
@@ -21,7 +25,7 @@
 						<input name="password" type="password" autocomplete="current-password" required>
 					</label>
 					<div class="form-actions">
-						<button class="primary-button" type="submit">Login</button>
+						<button class="primary-button" id="authSubmit" type="submit">Login</button>
 						<a class="secondary-button" href="index.html">Journal</a>
 					</div>
 					<p class="form-message login-message" id="loginMessage" aria-live="polite"></p>

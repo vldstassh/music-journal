@@ -1,6 +1,10 @@
 const API_BASE = globalThis.MUSIC_JOURNAL_API_BASE || getStoredValue("musicJournalApiBase") || "";
-const loginForm = document.querySelector("#loginForm");
+const authForm = document.querySelector("#authForm");
+const authTitle = document.querySelector("#authTitle");
+const authSubmit = document.querySelector("#authSubmit");
+const authTabs = document.querySelectorAll("[data-auth-mode]");
 const loginMessage = document.querySelector("#loginMessage");
+let authMode = "login";
 
 function getStoredValue(key) {
 	try {
@@ -14,31 +18,58 @@ function showMessage(message) {
 	loginMessage.textContent = message;
 }
 
-loginForm.addEventListener("submit", async (event) => {
+async function submitAuth(endpoint, email, password) {
+	const response = await fetch(`${API_BASE}${endpoint}`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+		},
+		body: JSON.stringify({ email, password }),
+		credentials: "include",
+	});
+
+	if (!response.ok) {
+		throw new Error("Authentication failed");
+	}
+}
+
+function setAuthMode(nextMode) {
+	authMode = nextMode;
+	const isSignup = authMode === "signup";
+	authTitle.textContent = isSignup ? "Sign up" : "Login";
+	authSubmit.textContent = isSignup ? "Create account" : "Login";
+	authForm.elements.password.autocomplete = isSignup ? "new-password" : "current-password";
+	showMessage("");
+
+	authTabs.forEach((tab) => {
+		const isActive = tab.dataset.authMode === authMode;
+		tab.classList.toggle("is-active", isActive);
+		tab.setAttribute("aria-selected", String(isActive));
+	});
+}
+
+authTabs.forEach((tab) => {
+	tab.addEventListener("click", () => {
+		setAuthMode(tab.dataset.authMode);
+	});
+});
+
+authForm.addEventListener("submit", async (event) => {
 	event.preventDefault();
 	showMessage("");
 
-	const formData = new FormData(loginForm);
+	const formData = new FormData(authForm);
+	const email = formData.get("email").trim();
+	const password = formData.get("password");
 
 	try {
-		const response = await fetch(`${API_BASE}/api/login`, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({
-				email: formData.get("email").trim(),
-				password: formData.get("password"),
-			}),
-			credentials: "include",
-		});
-
-		if (!response.ok) {
-			throw new Error("Login failed");
+		if (authMode === "signup") {
+			await submitAuth("/api/signup", email, password);
 		}
 
+		await submitAuth("/api/login", email, password);
 		window.location.href = "index.html";
 	} catch {
-		showMessage("Login failed. Check your email and password.");
+		showMessage(authMode === "signup" ? "Sign up failed. Try another email or a longer password." : "Login failed. Check your email and password.");
 	}
 });

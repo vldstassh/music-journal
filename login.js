@@ -36,8 +36,8 @@ async function submitAuth(endpoint, email, password) {
 function setAuthMode(nextMode) {
 	authMode = nextMode;
 	const isSignup = authMode === "signup";
-	authTitle.textContent = isSignup ? "Sign up" : "Login";
-	authSubmit.textContent = isSignup ? "Create account" : "Login";
+	authTitle.textContent = isSignup ? "Sign up" : "Sign in";
+	authSubmit.textContent = isSignup ? "Sign up" : "Sign in";
 	authForm.elements.password.autocomplete = isSignup ? "new-password" : "current-password";
 	showMessage("");
 
@@ -70,6 +70,6 @@ authForm.addEventListener("submit", async (event) => {
 		await submitAuth("/api/login", email, password);
 		window.location.href = "index.html";
 	} catch {
-		showMessage(authMode === "signup" ? "Sign up failed. Try another email or a longer password." : "Login failed. Check your email and password.");
+		showMessage(authMode === "signup" ? "Sign up failed. Try another email or a longer password." : "Sign in failed. Check your email and password.");
 	}
 });

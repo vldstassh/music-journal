@@ -15,14 +15,14 @@ patterns.
 
 The root of this repository contains a static HTML/CSS/JS interface for the main journal experience:
 
-- Basic `login.html` page for login and signup, redirecting to `index.html` after successful authentication.
+- Basic `login.html` page for sign in and sign up, redirecting to `index.html` after successful authentication.
 - Mood selection with visual options and an intensity slider.
 - Song title, artist, optional link, and journal note fields.
 - Timeline history, mood filtering, summary stats, export, and local offline storage.
 - Responsive layout for quick daily entries on desktop and mobile.
 - Optional sync with the mood API at `/api/moods` when the backend is available from the same origin.
 
-Open `login.html` to start with login, or open `index.html` directly to use the local journal view.
+Open `login.html` to sign in or sign up, or open `index.html` directly to use the local journal view.
 
 If the backend runs on a different origin, set the API base URL in the browser console before
 reloading, or update `config.js` before deployment:

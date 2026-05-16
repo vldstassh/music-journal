@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Music Journal</title>
+		<link rel="stylesheet" href="styles.css">
+	</head>
+	<body>
+		<div class="app-shell">
+			<header class="app-header">
+				<div>
+					<p class="eyebrow">Mood-Based Music Journal</p>
+					<h1>Music Journal</h1>
+				</div>
+				<div class="header-actions">
+					<a class="secondary-button" href="login.html">Login</a>
+					<div class="sync-pill" id="syncStatus" aria-live="polite">Offline-ready</div>
+				</div>
+			</header>
+
+			<main class="workspace">
+				<section class="entry-panel" aria-labelledby="entryTitle">
+					<div class="section-heading">
+						<div>
+							<p class="eyebrow">Today</p>
+							<h2 id="entryTitle">Log a mood and song</h2>
+						</div>
+						<button class="icon-button" id="clearForm" type="button" aria-label="Clear form" title="Clear form">
+							<span aria-hidden="true">↺</span>
+						</button>
+					</div>
+
+					<form id="journalForm" class="journal-form">
+						<fieldset class="mood-picker">
+							<legend>Mood</legend>
+							<div class="mood-grid" role="radiogroup" aria-label="Choose a mood">
+								<label class="mood-option">
+									<input type="radio" name="mood" value="Joyful" checked>
+									<span class="mood-icon" aria-hidden="true">😊</span>
+									<span>Joyful</span>
+								</label>
+								<label class="mood-option">
+									<input type="radio" name="mood" value="Calm">
+									<span class="mood-icon" aria-hidden="true">🌿</span>
+									<span>Calm</span>
+								</label>
+								<label class="mood-option">
+									<input type="radio" name="mood" value="Focused">
+									<span class="mood-icon" aria-hidden="true">🎧</span>
+									<span>Focused</span>
+								</label>
+								<label class="mood-option">
+									<input type="radio" name="mood" value="Anxious">
+									<span class="mood-icon" aria-hidden="true">⚡</span>
+									<span>Anxious</span>
+								</label>
+								<label class="mood-option">
+									<input type="radio" name="mood" value="Sad">
+									<span class="mood-icon" aria-hidden="true">🌧</span>
+									<span>Sad</span>
+								</label>
+								<label class="mood-option">
+									<input type="radio" name="mood" value="Angry">
+									<span class="mood-icon" aria-hidden="true">🔥</span>
+									<span>Angry</span>
+								</label>
+							</div>
+						</fieldset>
+
+						<label class="range-field">
+							<span>Intensity <strong id="intensityValue">6</strong></span>
+							<input id="intensity" name="intensity" type="range" min="1" max="10" value="6">
+						</label>
+
+						<div class="field-grid">
+							<label>
+								<span>Song title</span>
+								<input name="songTitle" type="text" autocomplete="off" required placeholder="A song for this mood">
+							</label>
+							<label>
+								<span>Artist</span>
+								<input name="artist" type="text" autocomplete="off" placeholder="Artist or band">
+							</label>
+						</div>
+
+						<label>
+							<span>Song link</span>
+							<input name="songUrl" type="url" inputmode="url" placeholder="https://open.spotify.com/...">
+						</label>
+
+						<label>
+							<span>Journal note</span>
+							<textarea name="note" rows="4" placeholder="What made this song fit today?"></textarea>
+						</label>
+
+						<div class="form-actions">
+							<button class="primary-button" type="submit">Save entry</button>
+							<p class="form-message" id="formMessage" aria-live="polite"></p>
+						</div>
+					</form>
+				</section>
+
+				<section class="history-panel" aria-labelledby="historyTitle">
+					<div class="section-heading">
+						<div>
+							<p class="eyebrow">History</p>
+							<h2 id="historyTitle">Emotional playlist</h2>
+						</div>
+						<div class="toolbar">
+							<select id="moodFilter" aria-label="Filter history by mood">
+								<option value="all">All moods</option>
+							</select>
+							<button class="icon-button" id="exportEntries" type="button" aria-label="Export entries" title="Export entries">
+								<span aria-hidden="true">⇩</span>
+							</button>
+						</div>
+					</div>
+
+					<div class="stats-grid" aria-label="Journal summary">
+						<div>
+							<span id="entryCount">0</span>
+							<p>Entries</p>
+						</div>
+						<div>
+							<span id="topMood">-</span>
+							<p>Top mood</p>
+						</div>
+						<div>
+							<span id="averageIntensity">-</span>
+							<p>Avg intensity</p>
+						</div>
+					</div>
+
+					<div id="emptyState" class="empty-state">
+						<strong>No entries yet</strong>
+						<p>Your first mood and song will appear here.</p>
+					</div>
+
+					<ol class="timeline" id="timeline" aria-label="Saved journal entries"></ol>
+				</section>
+			</main>
+		</div>
+
+		<template id="entryTemplate">
+			<li class="entry-card">
+				<div class="entry-date"></div>
+				<div class="entry-body">
+					<div class="entry-topline">
+						<span class="entry-mood"></span>
+						<span class="entry-intensity"></span>
+					</div>
+					<h3></h3>
+					<p class="entry-artist"></p>
+					<p class="entry-note"></p>
+					<a class="entry-link" target="_blank" rel="noreferrer">Open song</a>
+				</div>
+			</li>
+		</template>
+
+		<script src="config.js"></script>
+		<script src="script.js"></script>
+	</body>
+</html>

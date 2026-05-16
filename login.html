@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Login | Music Journal</title>
+		<link rel="stylesheet" href="styles.css">
+	</head>
+	<body>
+		<main class="login-shell" aria-labelledby="loginTitle">
+			<section class="login-panel">
+				<p class="eyebrow">Music Journal</p>
+				<h1 id="loginTitle">Login</h1>
+				<form id="loginForm" class="journal-form">
+					<label>
+						<span>Email</span>
+						<input name="email" type="email" autocomplete="email" required>
+					</label>
+					<label>
+						<span>Password</span>
+						<input name="password" type="password" autocomplete="current-password" required>
+					</label>
+					<div class="form-actions">
+						<button class="primary-button" type="submit">Login</button>
+						<a class="secondary-button" href="index.html">Journal</a>
+					</div>
+					<p class="form-message login-message" id="loginMessage" aria-live="polite"></p>
+				</form>
+			</section>
+		</main>
+
+		<script src="config.js"></script>
+		<script src="login.js"></script>
+	</body>
+</html>

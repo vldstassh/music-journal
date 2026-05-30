@@ -58,7 +58,8 @@ function saveEntries() {
 function normalizeEntry(entry) {
 	const createdAt = entry.createdAt || entry.date || new Date().toISOString();
 	return {
-		id: entry.id || entry._id || createId(),
+		id: entry._id || entry.id || entry.clientId || createId(),
+		clientId: entry.clientId || "",
 		mood: entry.mood || "Joyful",
 		intensity: Number(entry.intensity || 5),
 		songTitle: entry.songTitle || entry.song || "Untitled song",
@@ -171,7 +172,12 @@ async function syncFromApi() {
 
 		const remoteEntries = (await response.json()).map(normalizeEntry);
 		const merged = new Map(entries.map((entry) => [entry.id, entry]));
-		remoteEntries.forEach((entry) => merged.set(entry.id, entry));
+		remoteEntries.forEach((entry) => {
+			if (entry.clientId) {
+				merged.delete(entry.clientId);
+			}
+			merged.set(entry.id, entry);
+		});
 		entries = [...merged.values()];
 		saveEntries();
 		syncStatus.textContent = "Synced";
@@ -191,6 +197,7 @@ async function saveToApi(entry) {
 				"Content-Type": "application/json",
 			},
 			body: JSON.stringify({
+				clientId: entry.id,
 				mood: entry.mood,
 				intensity: entry.intensity,
 				songTitle: entry.songTitle,
@@ -205,11 +212,14 @@ async function saveToApi(entry) {
 			throw new Error("Could not save remotely");
 		}
 
+		const result = await response.json();
 		syncStatus.textContent = "Synced";
 		syncStatus.classList.add("is-online");
+		return normalizeEntry(result.data || result);
 	} catch {
 		syncStatus.textContent = "Saved locally";
 		syncStatus.classList.remove("is-online");
+		return null;
 	}
 }
 
@@ -233,7 +243,14 @@ form.addEventListener("submit", async (event) => {
 	renderEntries();
 	resetForm();
 	setMessage("Entry saved");
-	await saveToApi(entry);
+	const remoteEntry = await saveToApi(entry);
+	if (remoteEntry) {
+		entries = entries.map((currentEntry) => (
+			currentEntry.id === entry.id ? remoteEntry : currentEntry
+		));
+		saveEntries();
+		renderEntries();
+	}
 });
 
 intensity.addEventListener("input", () => {

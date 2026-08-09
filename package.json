@@ -1,0 +1,23 @@
+{
+  "name": "music-journal",
+  "version": "1.0.0",
+  "description": "Personal mood journal with an Express API and MongoDB persistence",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "backend"
+  ],
+  "scripts": {
+    "start": "npm --workspace music-journal-backend start",
+    "dev": "npm --workspace music-journal-backend run dev",
+    "check": "npm --workspace music-journal-backend run check",
+    "test": "npm --workspace music-journal-backend test"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "allowScripts": {
+    "bcrypt@6.0.0": true,
+    "fsevents@2.3.3": true
+  }
+}

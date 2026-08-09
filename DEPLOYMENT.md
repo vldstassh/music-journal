@@ -1,176 +1,196 @@
-# Production deployment
+# Vercel Hobby deployment
 
-This repository is prepared as one Render web service backed by MongoDB Atlas. Express serves the
-frontend and API from one origin, so production does not need a separate static-site service or a
-cross-origin browser configuration.
+Music Journal is prepared for one personal, non-commercial Vercel Hobby project backed by MongoDB
+Atlas. Vercel serves `public/` from its CDN and runs the root `app.js` Express entry as one Function,
+so the frontend and API share the same HTTPS origin.
 
-Render is the deployment target because its native Node runtime, GitHub integration, health checks,
-managed HTTPS, rollback support, and Blueprint configuration fit the existing application without a
-container or architectural rewrite. The committed [`render.yaml`](render.yaml) is the source of truth
-for the service settings.
+Render was replaced to provide the requested straightforward free Hobby workflow without instance,
+shutdown-delay, health-check, or paid-plan configuration. No Docker image, paid add-on, or separate
+frontend project is required.
 
-The runtime is pinned consistently to Node 24.18.0 in `.nvmrc`, `package.json`, CI, and the Blueprint.
-Node 24 is the current Active LTS line; the former Node 20 pin is no longer suitable because that line
-has reached end-of-life and no longer receives security fixes.
+## Before importing the repository
 
-## Before creating the service
+1. Treat every MongoDB password previously pasted into chat, logs, screenshots, or another
+   non-secret channel as invalid. Rotate it before deployment.
+2. In Atlas, open **Security > Database Access** and create a dedicated password user for this
+   application. Give it only the built-in `readWrite` role on the `music-journal` database. Do not
+   grant `atlasAdmin`, `readWriteAnyDatabase`, or another administrative role.
+3. Copy the Atlas application connection string. Its general form is:
 
-1. In Atlas, rotate any database password that has ever appeared in chat, a terminal transcript, a
-   screenshot, or another non-secret channel. Do not reuse it for production.
-2. Create a dedicated Atlas **database user** for this application. Grant only the built-in
-   `readWrite` role on the `music-journal` database and, if the project contains unrelated clusters,
-   restrict the user to the intended cluster. Do not grant `atlasAdmin` or `readWriteAnyDatabase`.
-3. Copy an Atlas `mongodb+srv://` application connection string for that user. URL-encode special
-   characters in its password and confirm it targets `music-journal.85gqdwy.mongodb.net`. Store the
-   URI only in Render's secret environment settings.
-4. Confirm Atlas backups and operational alerts meet the data-recovery requirements for the chosen
-   cluster tier.
-5. Review the Blueprint's `region: frankfurt` before initial creation. Frankfurt is the selected
-   European default; use the region nearest both the users and the Atlas cluster. Render cannot move
-   an existing service between regions, so change this value before the first deployment if needed.
-6. Review Render's current Starter instance pricing. `plan: starter` is intentionally a paid
-   production baseline and avoids the availability limitations of a free instance.
+   ```text
+   mongodb+srv://USERNAME:PASSWORD@music-journal.85gqdwy.mongodb.net/?appName=music-journal
+   ```
 
-Atlas database users are distinct from Atlas control-plane users. The application user needs data
-access, not permission to administer the Atlas project.
+   URL-encode special characters in the password. Do not save the completed URI in this repository.
+4. Generate a unique session secret locally:
 
-## Create the Render service
+   ```sh
+   openssl rand -hex 32
+   ```
 
-1. In Render, choose **New > Blueprint** and connect the GitHub repository
-   `vldstassh/music-journal`.
-2. Keep the Blueprint path as `render.yaml` and review the proposed `music-journal` web service.
-3. Supply the two prompted secret values:
+   Keep the output only in the Vercel Production environment. Changing it later signs every user
+   out but does not remove accounts or journal entries.
+5. Confirm the Atlas cluster's backup and alerting choices are suitable for the journal data. Those
+   controls depend on the Atlas tier and are not supplied by Vercel.
 
-   - `MONGODB_URI`: the dedicated Atlas user's complete SRV connection string.
-   - `SESSION_SECRET`: a unique cryptographically random value of at least 32 characters. For
-     example, generate one locally with `openssl rand -hex 32` and paste only its output into
-     Render.
+Atlas database users and Atlas website users are different. The application user needs narrowly
+scoped data access, not permission to administer the Atlas project.
 
-4. Confirm the resulting settings against this table before accepting the Blueprint:
+## Atlas Network Access for Vercel Hobby
 
-   | Setting | Required value |
+Ordinary Vercel deployments use dynamic outbound addresses. Fixed outbound addresses are paid
+Vercel features and are intentionally not used here. Atlas must therefore accept connections from
+the dynamic Vercel fleet for this Hobby deployment:
+
+1. In Atlas, open the project containing the cluster.
+2. Open **Security > Network Access > IP Access List**.
+3. Choose **Add IP Address**, then **Allow Access from Anywhere**.
+4. Confirm the entry is exactly `0.0.0.0/0`, add a comment such as
+   `Vercel Hobby dynamic outbound`, and save it.
+5. Wait until Atlas marks the entry active. After the Vercel deployment is verified, remove any
+   obsolete provider-specific access-list entries.
+
+`0.0.0.0/0` allows a network connection attempt from any IPv4 address; it does not bypass MongoDB
+authentication. This is a real reduction in network-layer restriction, so compensate with a long,
+unique password, the dedicated user, `readWrite` only on `music-journal`, prompt credential rotation,
+and Atlas alerts. Do not fabricate or copy a static Vercel IP range. If tighter network allowlisting
+becomes mandatory, Vercel Hobby is no longer the appropriate hosting constraint; do not silently
+enable a paid networking feature.
+
+## Import into Vercel
+
+1. Push the reviewed deployment commit to `trunk`.
+2. Sign in to Vercel with GitHub under a personal Hobby account.
+3. Choose **Add New > Project** and import `vldstassh/music-journal`.
+4. Before selecting **Deploy**, confirm these fields:
+
+   | Vercel field | Required setting |
    | --- | --- |
-   | Branch | `trunk` |
-   | Runtime | Node |
-   | Root directory | blank / repository root |
-   | Build command | `npm --prefix backend ci` |
-   | Start command | `npm --prefix backend start` |
-   | Health check path | `/api/health` |
-   | Auto-deploy | After CI Checks Pass |
-   | Instance type | Starter or larger |
+   | Plan | Hobby |
+   | Project name | `music-journal` (or another available free name) |
+   | Framework Preset | Express |
+   | Root Directory | `./` / repository root |
+   | Node.js Version | 24.x |
+   | Install Command | Override with `npm ci` |
+   | Build Command | Default; no custom command |
+   | Output Directory | Default; no override |
 
-   The root directory must remain blank. Render excludes files outside a configured root directory
-   at build time and runtime; setting it to `backend` would omit the sibling `public/` directory that
-   Express serves.
+   The repository root is required: it contains the Vercel `app.js`, root workspace lockfile, and
+   the sibling `public/` directory. Do not set the root to `backend`.
+5. Under the import screen's **Environment Variables**, add the Production values in the next
+   section. Select only **Production** for each value.
+6. Select **Deploy**. Vercel should detect `app.js` as the Express entry and `public/` as static
+   content. The repository intentionally has no `vercel.json`; current Express routing needs no
+   custom rewrite.
+7. After import, open **Project > Settings > Environments > Production > Branch Tracking**, set the
+   production branch to `trunk`, and save. Commits pushed to `trunk` then create Production
+   deployments; other branches create Preview deployments.
 
-5. Create the service. The first start can fail until Atlas permits the new service's outbound
-   addresses; this is expected and is safer than opening Atlas to the entire internet.
+Do not add Vercel deployment tokens or deployment secrets to GitHub Actions. The native GitHub
+integration handles deployments after pushes; the existing workflow remains responsible for tests.
 
-## Environment variables
+## Production environment variables
 
-The Blueprint sets all non-secret values and prompts for secrets. The final Render environment must
-contain:
+In **Project > Settings > Environment Variables**, enter exactly the following and scope each one to
+**Production** only:
 
-| Variable | Secret | Production value |
+| Name | Production value | Sensitive |
 | --- | --- | --- |
-| `MONGODB_URI` | Yes | Dedicated Atlas application-user SRV URI |
-| `SESSION_SECRET` | Yes | Unique random value, at least 32 characters |
-| `DB_NAME` | No | `music-journal` |
-| `NODE_ENV` | No | `production` |
-| `NODE_VERSION` | No | `24.18.0` |
-| `COOKIE_SAMESITE` | No | `lax` |
+| `NODE_ENV` | `production` | No |
+| `DB_NAME` | `music-journal` | No |
+| `COOKIE_SAMESITE` | `lax` | No |
+| `MONGODB_URI` | Complete dedicated Atlas SRV URI | Yes |
+| `SESSION_SECRET` | Output of `openssl rand -hex 32` | Yes |
 
-Do not set `PORT`; Render supplies it. Do not set `SESSION_STORE=memory`; production always uses the
-MongoDB-backed `sessions_v2` store. Do not set `CORS_ORIGIN` for this single-origin deployment.
-Never place real values in `render.yaml`, `.env.example`, frontend files, Git history, build commands,
-or documentation.
+Leave `PORT`, `CORS_ORIGIN`, and `SESSION_STORE` unset. Vercel supplies request handling rather than a
+long-running port; frontend and API are same-origin; and production must use MongoDB-backed sessions.
+Never place the secret values in `vercel.json`, `.env.example`, frontend files, build commands, logs,
+documentation, or Git history. Environment-variable changes affect only new deployments, so redeploy
+after rotating a value.
 
-## Permit Render in Atlas
+Production database credentials are deliberately unavailable to Preview deployments. Preview static
+pages may load, but their API will fail closed because `MONGODB_URI`, `DB_NAME`, and `SESSION_SECRET`
+are absent. If live Preview API testing is later required, create a separate non-production Atlas
+database and least-privileged user, then add separate Preview-only values. Never point arbitrary
+Preview branches at the production database.
 
-After Render creates the service:
+## Runtime behavior
 
-1. Open the service, choose **Connect > Outbound**, and copy every listed CIDR range.
-2. In Atlas, open **Security > Network Access > Add IP Address** and add each Render CIDR with a
-   descriptive comment such as `music-journal Render Frankfurt`.
-3. Do not add `0.0.0.0/0`. Render may use any address in its region's shared outbound ranges, so all
-   listed ranges are required. For tighter isolation, a Render Pro-or-higher workspace can use
-   dedicated outbound IPs; allowlist those fixed addresses instead.
-4. Once Atlas reports the entries active, use **Manual Deploy > Deploy latest commit** in Render if
-   the initial deployment failed.
-5. Recheck Atlas Network Access after changing the Render region or enabling dedicated outbound IPs.
-
-Network allowlisting and database authentication are separate controls; both must succeed.
-
-## HTTPS and cookies
-
-Render provides and renews TLS certificates for the service's `onrender.com` hostname and for verified
-custom domains, and redirects HTTP traffic to HTTPS. The application trusts one Render proxy hop and
-sets production session cookies as `Secure`, `HttpOnly`, and `SameSite=Lax`.
-
-For a custom domain, add it under **Settings > Custom Domains**, apply the DNS records Render shows,
-wait for verification and certificate issuance, then verify the HTTPS URL. Keep `COOKIE_SAMESITE=lax`
-for this single-origin design. A future genuinely cross-site frontend would require an explicit
-`CORS_ORIGIN`, HTTPS on both origins, and `COOKIE_SAMESITE=none`.
+- Root `app.js` initializes the existing application and exports it without `listen()` or signal
+  handlers. Vercel converts it into one Express Function.
+- `backend/server.js` remains the local or traditional-process entry used by `npm start`; only that
+  entry binds a port and handles `SIGINT`/`SIGTERM`.
+- `public/` continues to provide `/`, `/login.html`, and the existing CSS and JavaScript. Vercel
+  serves matching files from its CDN. Express's existing static middleware remains useful locally
+  and is ignored by Vercel.
+- All other requests, including `/api/*`, reach the exported Express application without custom
+  rewrites.
+- Each cold Function instance creates one module-scoped `MongoClient`; warm requests reuse its
+  cached connection promise. The client is not closed after a request. A later cold instance safely
+  creates its own connection. The pool keeps a zero minimum, caps application connections at ten,
+  and retires idle connections after 60 seconds to suit a low-traffic function workload.
+- The same client backs models and `connect-mongo`. Sessions remain in `sessions_v2` with a seven-day
+  TTL. Production cookies remain `HttpOnly`, `Secure`, and `SameSite=Lax`.
+- Application correctness does not depend on in-memory state. Accounts, entries, and sessions are
+  stored in Atlas and therefore survive warm-instance replacement and cold starts.
+- `GET /api/health` remains an unauthenticated liveness response of `{"status":"ok"}`. Its handler
+  does not perform a database query.
 
 ## Post-deployment verification
 
-Perform these checks after the deploy is marked live:
+Replace `YOUR-PROJECT` below with the assigned hostname, then complete every check:
 
-1. Confirm process liveness and the exact response:
+1. Verify health and static routes over HTTPS:
 
    ```sh
-   curl --fail --silent --show-error https://YOUR-SERVICE.onrender.com/api/health
+   curl --fail --silent --show-error https://YOUR-PROJECT.vercel.app/api/health
    # {"status":"ok"}
+
+   curl --fail --silent --show-error --output /dev/null \
+     https://YOUR-PROJECT.vercel.app/
+   curl --fail --silent --show-error --output /dev/null \
+     https://YOUR-PROJECT.vercel.app/login.html
    ```
 
-2. Load the HTTPS root page and `/login.html`; confirm CSS and JavaScript assets return successfully
-   and browser developer tools show no mixed-content or CORS errors.
-3. Create or use an intended production account. Confirm sign-up succeeds, authenticated
-   `GET /api/user` returns that account, logout succeeds, and login succeeds again.
-4. Add one journal entry, reload the page, and confirm the same entry is loaded from MongoDB. Use a
-   second intended account to confirm accounts cannot see each other's entries.
-5. In browser storage/network tools, confirm the session cookie is named `music-journal.sid` and has
-   `Secure`, `HttpOnly`, and `SameSite=Lax`. Confirm no credential or database URI appears in any
-   browser-delivered file or response.
-6. Restart the service from Render. The existing session should remain valid because
-   it is stored in MongoDB, and the journal entry must still be present.
-7. Review Render logs for the non-sensitive startup messages `MongoDB connection established` and
-   `Music Journal listening on 0.0.0.0:<port>`. Logs intentionally report error types rather than
-   exception messages that might contain secrets.
-8. In Atlas, verify the `users`, `moods`, and `sessions_v2` collections and expected indexes exist,
-   without editing or deleting unrelated production records.
-9. Expect cookies from any deployment that used the older session collection to be invalid. This
-   one-time sign-out does not remove accounts or journal entries.
+2. In a browser, confirm `/`, `/login.html`, CSS, and JavaScript load without mixed-content, CORS,
+   or console errors.
+3. Sign up, call `/api/user` while authenticated, log out, and log back in.
+4. Create a journal entry, refresh, wait long enough for later requests to reach another warm/cold
+   instance, and confirm the entry persists.
+5. Use two intended accounts and confirm user A cannot see user B's entries.
+6. In browser network/storage tools, confirm `music-journal.sid` is `HttpOnly`, `Secure`, and
+   `SameSite=Lax`.
+7. In Atlas, verify that `users`, `moods`, and `sessions_v2` exist and that the session collection has
+   its expiry index. Do not edit or delete unrelated production data.
+8. Inspect browser-delivered files, error responses, and Vercel logs. Confirm no MongoDB URI,
+   password, session secret, or internal error detail appears.
+9. Trigger a new request after a period of inactivity and repeat login, `/api/user`, and entry
+   retrieval to exercise cold-start behavior.
 
-`/api/health` is deliberately a lightweight HTTP-process liveness check. It does not query MongoDB on
-every probe, so a short database interruption does not create a health-check restart loop. Initial
-startup does verify the database connection before opening the HTTP listener.
+Users with sessions from the older session collection will need to sign in once. That intentional
+one-time invalidation does not affect their account or journal data.
 
-## Rollback and recovery
+## Hobby limits, recovery, and rollback
 
-If a new release fails its health check, Render keeps the previous healthy deployment serving traffic.
-For an issue found after traffic switches:
+Vercel Hobby is for personal, non-commercial use and has fixed free usage limits. This project does
+not configure paid overages or paid add-ons. If usage exceeds the Hobby allowance, Vercel can pause
+or restrict service until usage resets; it should not be treated as an always-on commercial SLA.
 
-1. Open **Deploys**, select the last known-good successful deploy, choose **Rollback**, and confirm.
-2. Render disables automatic deploys after a dashboard rollback. Leave them disabled while diagnosing.
-3. Remember that a code rollback does not undo MongoDB data. This application currently has no
-   destructive schema migrations; do not manually delete collections as part of a rollback.
-4. Revert or fix the faulty change on `trunk`, run `npm ci`, `npm test`, and the smoke checks, then push
-   the corrective commit.
-5. Re-enable **After CI Checks Pass** only after the corrected deployment is healthy.
-
-If credentials may have been exposed, rotate the Atlas password and/or `SESSION_SECRET` in Render and
-redeploy. Rotating `SESSION_SECRET` signs every user out. Changing from the older session collection to
-`sessions_v2` likewise requires existing users to sign in once again.
+If a deployment is faulty, use the Vercel Deployments view to promote/restore the last known-good
+deployment or revert the faulty Git commit on `trunk`. A code rollback does not roll back MongoDB
+data. The application currently has no destructive schema migration, so do not delete collections as
+part of a rollback. Rotate the Atlas password or `SESSION_SECRET` immediately if either may have been
+exposed, then create a fresh deployment.
 
 ## Official references
 
-- [Render Blueprint specification](https://render.com/docs/blueprint-spec)
-- [Render monorepo and root-directory behavior](https://render.com/docs/monorepo-support)
-- [Render outbound IP addresses](https://render.com/docs/outbound-ip-addresses)
-- [Render health checks](https://render.com/docs/health-checks)
-- [Render TLS certificates](https://render.com/docs/tls)
-- [Render rollbacks](https://render.com/docs/rollbacks)
-- [Node.js release status](https://nodejs.org/en/about/previous-releases)
+- [Express on Vercel](https://vercel.com/docs/frameworks/backend/express)
+- [Vercel Git deployments and production branches](https://vercel.com/docs/git)
+- [Vercel environment variables](https://vercel.com/docs/environment-variables)
+- [Vercel Node.js versions](https://vercel.com/docs/functions/runtimes/node-js/node-js-versions)
+- [Vercel deployment IP allowlisting](https://vercel.com/kb/guide/how-to-allowlist-deployment-ip-address)
+- [Vercel Hobby plan](https://vercel.com/docs/plans/hobby)
 - [Atlas database users](https://www.mongodb.com/docs/atlas/security-add-mongodb-users/)
+- [Atlas built-in database roles](https://www.mongodb.com/docs/manual/reference/built-in-roles/)
 - [Atlas IP access lists](https://www.mongodb.com/docs/atlas/security/ip-access-list/)
+- [MongoDB Node.js connection pools](https://www.mongodb.com/docs/drivers/node/current/connect/connection-options/connection-pools/)

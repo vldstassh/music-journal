@@ -1,72 +1,97 @@
-# Deployment readiness progress
+# Deployment migration progress
 
-Status as of 2026-08-09: repository preparation is complete; no external service has been created or
-deployed by this work.
+Status as of 2026-08-10: repository preparation for Vercel Hobby is complete; no Vercel project was
+created, no deployment was started, and these changes remain uncommitted and unpushed.
 
-## Inspected
+## Provider decision
 
-- Server startup, port binding, graceful shutdown, MongoDB connection lifecycle, session store,
-  cookies, proxy trust, CORS, static frontend serving, and `/api/health`.
-- Environment template, secret-ignore rules, runtime metadata, lockfile, direct dependencies, tests,
-  CI workflow, README, and Git history for common committed-secret patterns.
-- Current official Render, MongoDB Atlas, Node.js, and GitHub Actions deployment requirements.
+The previous Render configuration was removed. Vercel Hobby was selected for the requested
+mainstream, personal/non-commercial workflow without an instance choice, payment-card setup, or paid
+runtime configuration. The migration uses only Vercel's Git integration, static CDN, Express
+Function, environment variables, HTTPS, and included Hobby capabilities. It adds no Docker image,
+paid add-on, fixed networking, database, domain, or deployment token.
 
-## Changed and why
+Hobby has fixed usage allowances. If the application outgrows them, service can be paused or
+restricted until the allowance resets; this repository does not enable paid overages.
 
-- Added `render.yaml` for one paid Render web service on `trunk`, with CI-gated auto-deploys,
-  `/api/health`, graceful-shutdown allowance, and secret values marked `sync: false`.
-- Kept the Render root at the repository root and used `npm --prefix backend` commands. Render makes
-  files outside a configured root unavailable, so `rootDir: backend` would break the existing sibling
-  `public/` frontend.
-- Moved the runtime pin from end-of-life Node 20 to Active LTS Node 24.18.0 consistently across
-  `.nvmrc`, package engines, CI's version source, and Render.
-- Updated the MongoDB driver from 7.2.0 to compatible 7.5.0; no direct package is now outdated.
-- Added an exact install-script allowlist and strict npm policy for the native dependencies required
-  by the locked tree.
-- Made startup connect to MongoDB before opening the HTTP listener, bind explicitly to `0.0.0.0`,
-  retain provider `PORT` handling, and emit actionable but credential-safe operational errors.
-- Sanitized unexpected controller/application errors so logs contain error type/code, not messages
-  that might include a URI or secret.
-- Added secret-summary tests, strengthened `.gitignore`, updated CI action majors, expanded README
-  deployment notes, and added the complete Render/Atlas runbook in `DEPLOYMENT.md`.
+## Repository and architecture changes
+
+- Deleted `render.yaml` and replaced provider-specific README and deployment instructions.
+- Added a minimal root npm workspace and lockfile so Vercel installs the backend's production
+  dependencies from the repository root using documented npm workspace behavior.
+- Added root `app.js`, a current Vercel Express entry that imports Express, initializes the shared
+  runtime, default-exports the app, and never opens a port or installs signal handlers.
+- Extracted environment validation and MongoDB session-store creation into `backend/runtime.js` so
+  the Vercel entry and traditional server use exactly the same application, session, and cookie
+  configuration.
+- Retained `backend/server.js` for local development and traditional Node hosting. It remains the
+  only entry that calls `listen()`, handles `PORT`, responds to process signals, and closes MongoDB
+  during process shutdown.
+- Preserved `public/` unchanged. Vercel serves it from its CDN; local Express continues to serve it
+  with the existing static middleware. Current Vercel Express support needs no custom rewrite or
+  `vercel.json` for this structure.
+- Preserved the module-scoped MongoDB client and connection promise. Each warm Function instance
+  reuses its client; requests never close it. The pool now caps application connections at ten,
+  keeps no idle minimum, and retires idle connections after 60 seconds.
+- Preserved MongoDB-backed sessions in `sessions_v2`, the seven-day TTL and cookie lifetime, and
+  production `HttpOnly`, `Secure`, `SameSite=Lax` cookies. Production still ignores
+  `SESSION_STORE=memory`.
+- Updated CI to install the root workspace lockfile with `npm ci`, then run the backend tests. CI
+  remains triggered for pull requests and pushes to `trunk` and uses `.nvmrc` for Node 24.18.0.
+- Added runtime contract tests for production session-secret validation, persistent-store
+  enforcement, the `sessions_v2` name, and the seven-day TTL.
+- Moved the root install-script approval policy to the root package while retaining a narrowed
+  backend-only approval configuration for the supported `npm --prefix backend ci` workflow.
+
+## Serverless and Atlas considerations
+
+- Vercel turns the exported Express application into one Function and may reuse or replace its
+  instance. Account, journal, and session correctness does not rely on process memory.
+- The root entry waits for the shared MongoDB client before exporting the configured application.
+  Model operations and `connect-mongo` then share that same client and its pool within a warm
+  instance.
+- Vercel Hobby has dynamic outbound addresses and no included fixed-egress feature. The documented
+  practical Atlas rule is therefore `0.0.0.0/0`, combined with mandatory authentication, a strong
+  rotated password, and a dedicated user with only `readWrite` on `music-journal`.
+- Production secrets and database configuration are scoped to Vercel Production only. Preview APIs
+  fail closed unless the owner later supplies an independent non-production database and user.
 
 ## Verification completed
 
-All final commands used checksum-verified official Node.js 24.18.0.
+All Node/npm checks used the repository's pinned Node.js 24.18.0 runtime.
 
 | Check | Result |
 | --- | --- |
-| Render-equivalent `NODE_ENV=production npm --prefix backend ci` | Passed; 96 packages installed, 0 vulnerabilities |
-| `npm --prefix backend test` after production-only install | Passed; 10 passed, 0 failed, 1 gated database test skipped |
-| `npm audit --omit=dev` | Passed; 0 vulnerabilities |
-| `npm outdated` | Passed; no outdated direct dependency reported |
-| `npm ls --omit=dev --depth=0` | Passed; production dependency tree valid |
-| Real server entrypoint with local memory store | Passed; bound `0.0.0.0`, health JSON and frontend loaded, API 404 remained structured |
-| Production start without a session secret | Passed; failed closed with a useful configuration error |
-| Failed MongoDB start with a synthetic credential | Passed; log contained the error type and guidance, not the synthetic credential |
-| `render.yaml` parse and invariant checks | Passed |
-| Workflow YAML parse, runtime consistency, and `git diff --check` | Passed |
-| Current-tree and Git-history secret-pattern review | Passed; only intentional URI templates/test fixtures matched; no complete private URI or key found |
+| `npm --prefix backend ci` | Passed; clean isolated backend install |
+| `npm --prefix backend test` | Passed; 13 passed, 0 failed, 1 gated database test skipped |
+| Root `npm test` workspace alias | Passed with the same 13/0/1 result |
+| Root `npm ci` (Vercel/CI install path) | Passed; 124 packages installed, 0 vulnerabilities |
+| JavaScript syntax checks, including root Vercel entry | Passed as part of `npm test` |
+| Runtime production-secret and persistent-session invariants | Passed |
+| Existing health, static frontend, API error, CORS, logging, and validation tests | Passed |
 
-The live MongoDB integration test was not rerun during this deployment-preparation pass. A prior run
-in this workspace did execute the gated end-to-end suite against the `music-journal` database with an
-isolated UUID account and entry; sign-up, persisted sessions, idempotent entry creation, retrieval, and
-logout passed, and a follow-up query confirmed the test records were removed. Because that database is
-the production database rather than an explicitly designated test database, the safe deployment
-procedure still requires the suite to be rerun against a separate test database when secure test
-credentials are available.
+The live MongoDB integration suite was not run during this migration because no dedicated test
+database was supplied, and destructive or write-oriented checks against production were explicitly
+out of scope. A prior workspace run exercised an isolated UUID account and entry against the
+`music-journal` database, passed signup/session/idempotency/retrieval/logout checks, and confirmed
+cleanup; that historical result is not a substitute for a fresh Vercel deployment test.
 
-## Remaining external work
+## Remaining manual work
 
-- Rotate the previously exposed Atlas password and create or confirm the dedicated password user with
-  `readWrite` only on `music-journal`.
-- Confirm Atlas backups/alerts and choose the Render region nearest the Atlas cluster; Frankfurt is the
-  reviewed Blueprint default and must be changed before service creation if inappropriate.
-- Connect Render to GitHub, review the paid Starter plan, supply `MONGODB_URI` and `SESSION_SECRET`,
-  create the Blueprint, and copy the service's outbound CIDRs into the Atlas IP access list.
-- Redeploy after the Atlas rules become active, then complete every HTTPS, authentication, isolation,
-  persistence, cookie, restart, log, and collection check in `DEPLOYMENT.md`.
+1. Rotate the previously exposed Atlas password and confirm a dedicated user with only `readWrite`
+   on `music-journal`.
+2. Add the Atlas `0.0.0.0/0` Network Access entry required by dynamic Vercel Hobby egress, accepting
+   and mitigating the documented security tradeoff.
+3. Review, commit, and push these changes to `trunk`.
+4. Import `vldstassh/music-journal` into a personal Vercel Hobby account with the exact fields in
+   `DEPLOYMENT.md`.
+5. Add the five Production-only environment variables, deploy, and set Production Branch Tracking
+   to `trunk`.
+6. Complete every HTTPS, health, authentication, account-isolation, persistence, cold-start,
+   session-cookie, Atlas collection, browser exposure, and log check in `DEPLOYMENT.md`.
 
-Not yet verified: the Render account/Blueprint preview, actual Atlas user/network configuration, a
-live HTTPS hostname, provider-managed TLS, or post-deployment behavior. These require the owner's
-external account access and newly rotated secrets.
+Not yet verified: Vercel account import/framework detection, Vercel's actual build output, a live
+`vercel.app` hostname, provider-managed HTTPS, the owner's Atlas user/access-list state, production
+environment-variable scopes, live cold starts, or end-to-end behavior in the deployed environment.
+Those require external account access and newly rotated secrets. The Vercel CLI was not linked or
+used to build because doing so requires project/account configuration; no deployment was created.

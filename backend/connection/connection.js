@@ -32,6 +32,9 @@ export function getDbName() {
 function getClient() {
 	if (!client) {
 		client = new MongoClient(getMongoUrl(), {
+		maxPoolSize: 10,
+		minPoolSize: 0,
+		maxIdleTimeMS: 60_000,
 			serverApi: {
 				version: ServerApiVersion.v1,
 				strict: true,

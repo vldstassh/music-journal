@@ -61,6 +61,7 @@ function setSecurityHeaders(_req, res, next) {
 }
 
 export function createApp({
+	application,
 	sessionStore,
 	sessionSecret = "test-session-secret",
 	isProduction = false,
@@ -71,7 +72,7 @@ export function createApp({
 		throw new Error("COOKIE_SAMESITE must be lax, strict, or none");
 	}
 
-	const app = express();
+	const app = application || express();
 	app.disable("x-powered-by");
 	app.set("trust proxy", isProduction ? 1 : false);
 	app.use(setSecurityHeaders);

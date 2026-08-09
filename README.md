@@ -14,12 +14,14 @@ through an Express and MongoDB backend.
 - Retryable offline writes with visible sync state and idempotent server persistence.
 - Session-based authentication with normalized email addresses, bcrypt password hashes, logout,
   and session rotation at sign-in.
-- A single deployable service: Express serves both the API and the files in `public/`.
+- One-origin deployment: Vercel serves `public/` from its CDN and runs the Express API as one
+  Function; the local Express server serves both.
 
 ## Repository layout
 
 ```text
 .
+├── app.js                   # Vercel Express entry; exports without opening a port
 ├── public/                  # Static HTML, CSS, configuration, and browser JavaScript
 ├── backend/
 │   ├── connection/         # Lazy MongoDB connection lifecycle
@@ -30,10 +32,11 @@ through an Express and MongoDB backend.
 │   ├── routes/             # Express API routes
 │   ├── test/               # Node test runner suites
 │   ├── app.js              # Testable Express application factory
-│   └── server.js           # Environment setup and process lifecycle
-├── DEPLOYMENT.md            # Render and Atlas production runbook
+│   ├── runtime.js          # Shared MongoDB session-store initialization
+│   └── server.js           # Local/traditional process lifecycle
+├── package.json             # Root npm workspace and Vercel runtime metadata
+├── DEPLOYMENT.md            # Vercel Hobby and Atlas production runbook
 ├── DEPLOYMENT_PROGRESS.md   # Current readiness evidence and remaining manual work
-├── render.yaml              # Render Blueprint without secret values
 └── .github/workflows/ci.yml
 ```
 
@@ -142,17 +145,19 @@ server errors are logged server-side without exposing internal details to client
 
 ## Quality checks
 
-Run the complete local verification from `backend/`:
+Run the complete local verification from the repository root:
 
 ```sh
-npm test
+npm ci
+npm --prefix backend test
 ```
 
 This command syntax-checks every server and browser JavaScript file, then runs validation and HTTP
 integration tests with Node's built-in test runner. The integration tests use an in-memory session
-store and do not require MongoDB. CI runs the same command for pull requests and pushes to `trunk`.
+store and do not require MongoDB. CI runs these commands for pull requests and pushes to `trunk`.
 Install-time dependency scripts are denied unless their exact reviewed package version appears in
-`package.json`'s `allowScripts` policy.
+the root `package.json`'s `allowScripts` policy. An isolated backend install with
+`npm --prefix backend ci` remains supported for local work.
 
 The MongoDB integration suite is gated to avoid changing a developer database accidentally. It
 creates isolated records, verifies signup, sessions, idempotent mood creation, retrieval, and logout,
@@ -171,16 +176,23 @@ npm run test:watch
 
 ## Deployment notes
 
-- The production target is one Render web service backed by MongoDB Atlas. Follow
-  [`DEPLOYMENT.md`](DEPLOYMENT.md) for exact provider settings, secrets, Atlas network access,
-  verification, and rollback instructions. Current readiness evidence is recorded in
-  [`DEPLOYMENT_PROGRESS.md`](DEPLOYMENT_PROGRESS.md).
-- The Render service root stays at the repository root because Express serves the sibling `public/`
-  directory. The Blueprint installs and starts the backend with npm's `--prefix backend` option.
+- The production target is one personal, non-commercial Vercel Hobby project backed by MongoDB
+  Atlas. Follow [`DEPLOYMENT.md`](DEPLOYMENT.md) for exact project fields, secret scopes, Atlas
+  Network Access, verification, limits, and rollback instructions. Current readiness evidence is
+  recorded in [`DEPLOYMENT_PROGRESS.md`](DEPLOYMENT_PROGRESS.md).
+- Vercel uses the repository root, installs the npm workspace from the root lockfile, serves
+  `public/` from its CDN, and discovers the root `app.js` as the Express Function. No `vercel.json`
+  or custom rewrite is needed.
+- `backend/server.js` remains the local/traditional-process entry. It opens a port and handles
+  process shutdown; the Vercel entry does neither.
 - The session-store upgrade uses the `sessions_v2` collection. Existing sessions from older
   deployments are intentionally invalidated once; users will need to sign in again.
+- Warm Vercel requests reuse the module-scoped MongoDB connection promise. Authentication, entries,
+  and sessions remain in Atlas rather than function memory.
 - Use HTTPS in production. Production cookies are secure by default.
 - Use a long, unique `SESSION_SECRET` and a least-privileged MongoDB account.
+- Keep production database credentials scoped to Vercel Production only. Use a separate database
+  and user if Preview API testing is later enabled.
 - Configure `CORS_ORIGIN` only when the frontend is genuinely deployed separately.
 - For a genuinely cross-site frontend, use HTTPS and explicitly set `COOKIE_SAMESITE=none`.
 - Do not use `SESSION_STORE=memory` in production; it is explicitly ignored there.

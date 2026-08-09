@@ -14,9 +14,16 @@ dist/
 dist-ssr/
 *.local
 *.env
+.env
+.env.*
 
 # Keep documented environment templates.
 !*.env.example
+
+# Private keys and certificate bundles
+*.key
+*.pem
+*.p12
 
 # Editor directories and files
 .vscode/*

@@ -5,6 +5,7 @@ import session from "express-session";
 import authRoutes from "./routes/authRouter.js";
 import moodRoutes from "./routes/moodRoutes.js";
 import { SESSION_COOKIE_NAME } from "./controllers/authController.js";
+import { summarizeError } from "./lib/logging.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.resolve(currentDirectory, "../public");
@@ -117,7 +118,7 @@ export function createApp({
 			return res.status(400).json({ error: "Request body must contain valid JSON" });
 		}
 
-		console.error("Unhandled request error:", error);
+		console.error("Unhandled request error:", summarizeError(error));
 		return res.status(500).json({ error: "Internal server error" });
 	});
 

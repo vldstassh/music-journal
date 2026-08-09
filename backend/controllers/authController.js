@@ -7,6 +7,7 @@ import {
 	hashPassword,
 	comparePasswordToHash,
 } from "../middleware/passwordHash.js";
+import { summarizeError } from "../lib/logging.js";
 import { validateEmail, validatePassword } from "../lib/validation.js";
 
 export const SESSION_COOKIE_NAME = "music-journal.sid";
@@ -42,7 +43,7 @@ async function establishSession(req, userId) {
 }
 
 function reportAuthError(operation, error, res) {
-	console.error(`Authentication ${operation} failed:`, error);
+	console.error(`Authentication ${operation} failed:`, summarizeError(error));
 	return res.status(500).json({ error: "Authentication service unavailable" });
 }
 

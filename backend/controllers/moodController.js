@@ -2,10 +2,11 @@ import {
 	createMoodModel,
 	getMoodsModel,
 } from "../models/moodModel.js";
+import { summarizeError } from "../lib/logging.js";
 import { validateMoodEntry } from "../lib/validation.js";
 
 function reportMoodError(operation, error, res) {
-	console.error(`Mood ${operation} failed:`, error);
+	console.error(`Mood ${operation} failed:`, summarizeError(error));
 	return res.status(500).json({ error: "Journal service unavailable" });
 }
 

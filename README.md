@@ -31,12 +31,16 @@ through an Express and MongoDB backend.
 │   ├── test/               # Node test runner suites
 │   ├── app.js              # Testable Express application factory
 │   └── server.js           # Environment setup and process lifecycle
+├── DEPLOYMENT.md            # Render and Atlas production runbook
+├── DEPLOYMENT_PROGRESS.md   # Current readiness evidence and remaining manual work
+├── render.yaml              # Render Blueprint without secret values
 └── .github/workflows/ci.yml
 ```
 
 ## Requirements
 
-- Node.js 20.19 or newer (see `.nvmrc`).
+- Node.js 24.18.x (Active LTS at the time of the deployment review; see `.nvmrc` and
+  `backend/package.json`).
 - npm.
 - MongoDB, either local or hosted.
 
@@ -147,6 +151,8 @@ npm test
 This command syntax-checks every server and browser JavaScript file, then runs validation and HTTP
 integration tests with Node's built-in test runner. The integration tests use an in-memory session
 store and do not require MongoDB. CI runs the same command for pull requests and pushes to `trunk`.
+Install-time dependency scripts are denied unless their exact reviewed package version appears in
+`package.json`'s `allowScripts` policy.
 
 The MongoDB integration suite is gated to avoid changing a developer database accidentally. It
 creates isolated records, verifies signup, sessions, idempotent mood creation, retrieval, and logout,
@@ -165,8 +171,12 @@ npm run test:watch
 
 ## Deployment notes
 
-- Run the service from `backend/` with `npm start`; Express serves `public/` from the repository
-  root and never exposes backend files.
+- The production target is one Render web service backed by MongoDB Atlas. Follow
+  [`DEPLOYMENT.md`](DEPLOYMENT.md) for exact provider settings, secrets, Atlas network access,
+  verification, and rollback instructions. Current readiness evidence is recorded in
+  [`DEPLOYMENT_PROGRESS.md`](DEPLOYMENT_PROGRESS.md).
+- The Render service root stays at the repository root because Express serves the sibling `public/`
+  directory. The Blueprint installs and starts the backend with npm's `--prefix backend` option.
 - The session-store upgrade uses the `sessions_v2` collection. Existing sessions from older
   deployments are intentionally invalidated once; users will need to sign in again.
 - Use HTTPS in production. Production cookies are secure by default.

@@ -2,7 +2,7 @@ services:
   - type: web
     name: music-journal
     runtime: node
-    plan: starter
+    plan: free
     region: frankfurt
     branch: trunk
     buildCommand: npm --prefix backend ci

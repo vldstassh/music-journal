@@ -3,6 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="Track moods through the music that defines each moment.">
 		<title>Music Journal</title>
 		<link rel="stylesheet" href="styles.css">
 	</head>
@@ -14,8 +15,12 @@
 					<h1>Music Journal</h1>
 				</div>
 				<div class="header-actions">
-					<a class="secondary-button" href="login.html">Sign in</a>
-					<div class="sync-pill" id="syncStatus" aria-live="polite">Offline-ready</div>
+					<a class="secondary-button" id="signInLink" href="login.html">Sign in</a>
+					<div class="account-actions is-hidden" id="accountActions">
+						<span class="account-email" id="accountEmail"></span>
+						<button class="secondary-button" id="logoutButton" type="button">Sign out</button>
+					</div>
+					<div class="sync-pill" id="syncStatus" role="status">Checking connection…</div>
 				</div>
 			</header>
 
@@ -31,7 +36,7 @@
 						</button>
 					</div>
 
-					<form id="journalForm" class="journal-form">
+					<form id="journalForm" class="journal-form" novalidate>
 						<fieldset class="mood-picker">
 							<legend>Mood</legend>
 							<div class="mood-grid" role="radiogroup" aria-label="Choose a mood">
@@ -76,11 +81,11 @@
 						<div class="field-grid">
 							<label>
 								<span>Song title</span>
-								<input name="songTitle" type="text" autocomplete="off" required placeholder="A song for this mood">
+								<input name="songTitle" type="text" autocomplete="off" required maxlength="200" placeholder="A song for this mood">
 							</label>
 							<label>
 								<span>Artist</span>
-								<input name="artist" type="text" autocomplete="off" placeholder="Artist or band">
+								<input name="artist" type="text" autocomplete="off" maxlength="200" placeholder="Artist or band">
 							</label>
 						</div>
 
@@ -91,7 +96,7 @@
 
 						<label>
 							<span>Journal note</span>
-							<textarea name="note" rows="4" placeholder="What made this song fit today?"></textarea>
+							<textarea name="note" rows="4" maxlength="5000" placeholder="What made this song fit today?"></textarea>
 						</label>
 
 						<div class="form-actions">
@@ -133,8 +138,8 @@
 					</div>
 
 					<div id="emptyState" class="empty-state">
-						<strong>No entries yet</strong>
-						<p>Your first mood and song will appear here.</p>
+						<strong id="emptyStateTitle">No entries yet</strong>
+						<p id="emptyStateMessage">Your first mood and song will appear here.</p>
 					</div>
 
 					<ol class="timeline" id="timeline" aria-label="Saved journal entries"></ol>
@@ -153,6 +158,7 @@
 					<h3></h3>
 					<p class="entry-artist"></p>
 					<p class="entry-note"></p>
+					<span class="entry-sync is-hidden">Waiting to sync</span>
 					<a class="entry-link" target="_blank" rel="noreferrer">Open song</a>
 				</div>
 			</li>

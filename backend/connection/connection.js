@@ -3,9 +3,17 @@ import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
 
+let client;
+let db;
+let connectionPromise;
+
 export function getMongoUrl() {
+	if (process.env.MONGODB_URI) {
+		return process.env.MONGODB_URI;
+	}
+
 	if (!process.env.DB_USER || !process.env.DB_PASSWORD) {
-		throw new Error("Missing DB_USER or DB_PASSWORD environment variable");
+		throw new Error("Missing MONGODB_URI (or legacy DB_USER and DB_PASSWORD) environment variable");
 	}
 
 	const user = encodeURIComponent(process.env.DB_USER);
@@ -21,25 +29,48 @@ export function getDbName() {
 	return process.env.DB_NAME;
 }
 
-const client = new MongoClient(getMongoUrl(), {
-	serverApi: {
-		version: ServerApiVersion.v1,
-		strict: true,
-		deprecationErrors: true,
-	},
-});
+function getClient() {
+	if (!client) {
+		client = new MongoClient(getMongoUrl(), {
+			serverApi: {
+				version: ServerApiVersion.v1,
+				strict: true,
+				deprecationErrors: true,
+			},
+		});
+	}
 
-let db;
+	return client;
+}
+
+export function connectMongoClient() {
+	if (!connectionPromise) {
+		connectionPromise = getClient()
+			.connect()
+			.catch((error) => {
+				connectionPromise = null;
+				throw error;
+			});
+	}
+
+	return connectionPromise;
+}
 
 export async function connectDB() {
-	try {
-		if (!db) {
-			await client.connect();
-			db = client.db(getDbName());
-		}
-		return db;
-	} catch (err) {
-		console.error(err);
-		throw err;
+	if (!db) {
+		const connectedClient = await connectMongoClient();
+		db = connectedClient.db(getDbName());
 	}
+
+	return db;
+}
+
+export async function closeDB() {
+	if (client) {
+		await client.close();
+	}
+
+	client = undefined;
+	db = undefined;
+	connectionPromise = undefined;
 }

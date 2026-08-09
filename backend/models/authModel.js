@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import { connectDB } from "../connection/connection.js";
 
 let userIndexesPromise;
@@ -15,46 +16,53 @@ async function ensureUserIndexes(db) {
 	await userIndexesPromise;
 }
 
-// sends email and password to db and returns result
-export async function signupUserModel(userEmail, userPassword) {
+export async function createUser(email, passwordHash) {
 	const db = await connectDB();
 	await ensureUserIndexes(db);
-
-	const doc = { email: userEmail, password: userPassword };
-	const existingUser = await db
-		.collection("users")
-		.findOne({ email: userEmail });
+	const users = db.collection("users");
+	const existingUser = await users.findOne(
+		{ email },
+		{ collation: { locale: "en", strength: 2 } },
+	);
 
 	if (existingUser) {
-		return false;
+		return null;
 	}
 
-	try {
-		const result = await db.collection("users").insertOne(doc);
+	const user = {
+		email,
+		password: passwordHash,
+		createdAt: new Date(),
+	};
 
-		return result;
+	try {
+		const result = await users.insertOne(user);
+		return { _id: result.insertedId, ...user };
 	} catch (error) {
 		if (error.code === 11000) {
-			return false;
+			return null;
 		}
 
 		throw error;
 	}
 }
 
-export async function loginUserModel(userEmail) {
+export async function findUserByEmail(email) {
 	const db = await connectDB();
-	const user = await db.collection("users").findOne({ email: userEmail });
-
-	return user;
+	return db.collection("users").findOne(
+		{ email },
+		{ collation: { locale: "en", strength: 2 } },
+	);
 }
 
-export async function getCurrentUser(userId) {
+export async function findUserById(userId) {
+	if (!ObjectId.isValid(userId)) {
+		return null;
+	}
+
 	const db = await connectDB();
-	const user = await db.collection("users").findOne(
-		{ _id: userId },
+	return db.collection("users").findOne(
+		{ _id: new ObjectId(userId) },
 		{ projection: { password: 0 } },
 	);
-
-	return user;
 }

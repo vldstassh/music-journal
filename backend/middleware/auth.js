@@ -1,7 +1,7 @@
 export function isAuth(req, res, next) {
 	if (req.session.userId) {
-		next();
-	} else {
-		res.sendStatus(401);
+		return next();
 	}
+
+	return res.status(401).json({ error: "Authentication required" });
 }

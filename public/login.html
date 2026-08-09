@@ -3,6 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="Sign in to sync your private Music Journal across devices.">
 		<title>Sign in | Music Journal</title>
 		<link rel="stylesheet" href="styles.css">
 	</head>
@@ -11,24 +12,25 @@
 			<section class="login-panel">
 				<p class="eyebrow">Music Journal</p>
 				<h1 id="authTitle">Sign in</h1>
-				<div class="auth-tabs" role="tablist" aria-label="Account action">
-					<button class="auth-tab is-active" type="button" data-auth-mode="login" role="tab" aria-selected="true">Sign in</button>
-					<button class="auth-tab" type="button" data-auth-mode="signup" role="tab" aria-selected="false">Sign up</button>
+				<div class="auth-tabs" aria-label="Account action">
+					<button class="auth-tab is-active" type="button" data-auth-mode="login" aria-pressed="true">Sign in</button>
+					<button class="auth-tab" type="button" data-auth-mode="signup" aria-pressed="false">Sign up</button>
 				</div>
-				<form id="authForm" class="journal-form">
+				<form id="authForm" class="journal-form" novalidate>
 					<label>
 						<span>Email</span>
-						<input name="email" type="email" autocomplete="email" required>
+						<input name="email" type="email" autocomplete="email" maxlength="254" required>
 					</label>
 					<label>
 						<span>Password</span>
-						<input name="password" type="password" autocomplete="current-password" required>
+						<input name="password" type="password" autocomplete="current-password" maxlength="72" required aria-describedby="passwordHint">
 					</label>
+					<p class="field-hint" id="passwordHint"></p>
 					<div class="form-actions">
 						<button class="primary-button" id="authSubmit" type="submit">Sign in</button>
 						<a class="secondary-button" href="index.html">Journal</a>
 					</div>
-					<p class="form-message login-message" id="loginMessage" aria-live="polite"></p>
+					<p class="form-message login-message" id="loginMessage" role="status"></p>
 				</form>
 			</section>
 		</main>

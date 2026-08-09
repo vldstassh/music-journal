@@ -1,8 +1,9 @@
 # Deployment migration progress
 
-Status as of 2026-08-10: Vercel reached the production Function but rejected an internal module as
-an invalid Express entry. The repository-side correction is prepared and remains uncommitted and
-unpushed; production must be redeployed after review.
+Status as of 2026-08-10: the internal-factory filename collision was corrected, but the following
+Vercel build still selected the backend workspace metadata instead of the root Express application.
+The repository-side package-ownership correction is prepared and remains uncommitted and unpushed;
+production must be redeployed after review.
 
 ## Production entry-point incident
 
@@ -33,6 +34,19 @@ The same fix removes two nonfatal build warnings:
 - The root and backend `.npmrc` files containing unsupported project-level
   `strict-allow-scripts`/`allow-scripts` settings were removed. The reviewed install-script
   approvals remain in the root `package.json` `allowScripts` field.
+
+The next Vercel build then reported:
+
+```text
+No entrypoint found which imports express. Found possible entrypoint: server.js
+```
+
+The backend workspace still advertised `server.js` through its package `main` field, while the root
+package neither advertised `app.js` nor directly declared the `express` dependency imported by that
+file. The root package now sets `main: app.js` and directly depends on the same Express version as the
+backend. The backend `main: server.js` field was removed; its unchanged `start: node server.js` script
+continues to provide the local/traditional server. This makes the repository root the unambiguous
+owner of the zero-configuration Vercel Express entry without adding `vercel.json`.
 
 ## Provider decision
 

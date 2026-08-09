@@ -14,7 +14,6 @@
   "license": "ISC",
   "author": "",
   "type": "module",
-  "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "check": "node --check ../app.js && node --check createApp.js && node --check runtime.js && node --check server.js && node --check connection/connection.js && node --check controllers/authController.js && node --check controllers/moodController.js && node --check lib/logging.js && node --check lib/validation.js && node --check middleware/auth.js && node --check middleware/passwordHash.js && node --check models/authModel.js && node --check models/moodModel.js && node --check routes/authRouter.js && node --check routes/moodRoutes.js && node --check ../public/config.js && node --check ../public/script.js && node --check ../public/login.js",

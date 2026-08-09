@@ -4,6 +4,7 @@
   "description": "Personal mood journal with an Express API and MongoDB persistence",
   "private": true,
   "type": "module",
+  "main": "app.js",
   "workspaces": [
     "backend"
   ],
@@ -15,6 +16,9 @@
   },
   "engines": {
     "node": "24.x"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true,

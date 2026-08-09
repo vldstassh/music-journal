@@ -117,7 +117,12 @@ Preview branches at the production database.
 ## Runtime behavior
 
 - Root `app.js` initializes the existing application and exports it without `listen()` or signal
-  handlers. Vercel converts it into one Express Function.
+  handlers. It is the sole intended Vercel entry, default-exports the configured Express app, and is
+  converted into one Express Function.
+- `backend/createApp.js` is the reusable application factory. Its non-entry-point filename prevents
+  Vercel from treating the internal named export as another deployable Express application.
+- `backend/runtime.js` owns environment validation plus MongoDB session-store initialization and is
+  shared by the Vercel and traditional-process paths.
 - `backend/server.js` remains the local or traditional-process entry used by `npm start`; only that
   entry binds a port and handles `SIGINT`/`SIGTERM`.
 - `public/` continues to provide `/`, `/login.html`, and the existing CSS and JavaScript. Vercel

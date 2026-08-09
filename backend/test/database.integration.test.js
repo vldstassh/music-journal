@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { once } from "node:events";
 import { randomUUID } from "node:crypto";
 import { ObjectId } from "mongodb";
-import { createApp } from "../app.js";
+import { createApp } from "../createApp.js";
 import { closeDB, connectDB } from "../connection/connection.js";
 
 const shouldRun = process.env.RUN_DB_TESTS === "1";

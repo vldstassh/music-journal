@@ -1,6 +1,6 @@
 import MongoStore from "connect-mongo";
 import dotenv from "dotenv";
-import { createApp } from "./app.js";
+import { createApp } from "./createApp.js";
 import { connectMongoClient, getDbName } from "./connection/connection.js";
 import { summarizeError } from "./lib/logging.js";
 

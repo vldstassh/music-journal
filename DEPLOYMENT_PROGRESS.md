@@ -1,7 +1,38 @@
 # Deployment migration progress
 
-Status as of 2026-08-10: repository preparation for Vercel Hobby is complete; no Vercel project was
-created, no deployment was started, and these changes remain uncommitted and unpushed.
+Status as of 2026-08-10: Vercel reached the production Function but rejected an internal module as
+an invalid Express entry. The repository-side correction is prepared and remains uncommitted and
+unpushed; production must be redeployed after review.
+
+## Production entry-point incident
+
+The production runtime reported:
+
+```text
+Invalid export found in module "/var/task/backend/app.js".
+The default export must be a function or server.
+FUNCTION_INVOCATION_FAILED
+```
+
+The root cause was an Express auto-detection filename collision. Root `app.js` was the correct
+Vercel entry and already default-exported the configured Express application, but the internal
+`backend/app.js` factory used another recognized entry filename and exported only the named
+`createApp()` function. Vercel detected that internal module and rejected it.
+
+The factory is now `backend/createApp.js`; every runtime and test import plus the syntax-check script
+uses that path. It remains a named factory export rather than acquiring a fake default application.
+Root `app.js` remains the sole Vercel entry and still does not call `listen()`. `backend/runtime.js`
+still initializes configuration, MongoDB, and sessions, while `backend/server.js` remains the local
+listener.
+
+The same fix removes two nonfatal build warnings:
+
+- Both package manifests now accept `node: 24.x`, so a Vercel-managed Node 24 patch such as 24.15.0
+  no longer conflicts with an unnecessary backend minimum of 24.18.0. `.nvmrc` still pins 24.18.0
+  for repeatable local and CI validation.
+- The root and backend `.npmrc` files containing unsupported project-level
+  `strict-allow-scripts`/`allow-scripts` settings were removed. The reviewed install-script
+  approvals remain in the root `package.json` `allowScripts` field.
 
 ## Provider decision
 
@@ -21,7 +52,8 @@ restricted until the allowance resets; this repository does not enable paid over
   dependencies from the repository root using documented npm workspace behavior.
 - Added root `app.js`, a current Vercel Express entry that imports Express, initializes the shared
   runtime, default-exports the app, and never opens a port or installs signal handlers.
-- Extracted environment validation and MongoDB session-store creation into `backend/runtime.js` so
+- Kept the testable factory in `backend/createApp.js` and environment validation plus MongoDB
+  session-store creation in `backend/runtime.js` so
   the Vercel entry and traditional server use exactly the same application, session, and cookie
   configuration.
 - Retained `backend/server.js` for local development and traditional Node hosting. It remains the
@@ -37,11 +69,12 @@ restricted until the allowance resets; this repository does not enable paid over
   production `HttpOnly`, `Secure`, `SameSite=Lax` cookies. Production still ignores
   `SESSION_STORE=memory`.
 - Updated CI to install the root workspace lockfile with `npm ci`, then run the backend tests. CI
-  remains triggered for pull requests and pushes to `trunk` and uses `.nvmrc` for Node 24.18.0.
+  remains triggered for pull requests and pushes to `trunk`; `.nvmrc` pins its Node 24 patch while
+  both package engines allow `24.x`.
 - Added runtime contract tests for production session-secret validation, persistent-store
   enforcement, the `sessions_v2` name, and the seven-day TTL.
-- Moved the root install-script approval policy to the root package while retaining a narrowed
-  backend-only approval configuration for the supported `npm --prefix backend ci` workflow.
+- Kept reviewed install-script approvals in the root package manifest without npm project settings
+  that the Vercel build reports as unknown.
 
 ## Serverless and Atlas considerations
 
@@ -62,11 +95,12 @@ All Node/npm checks used the repository's pinned Node.js 24.18.0 runtime.
 
 | Check | Result |
 | --- | --- |
-| `npm --prefix backend ci` | Passed; clean isolated backend install |
+| Root `npm ci` (Vercel/CI install path) | Passed; 124 packages installed with no `EBADENGINE` or unknown project-config warning |
 | `npm --prefix backend test` | Passed; 13 passed, 0 failed, 1 gated database test skipped |
 | Root `npm test` workspace alias | Passed with the same 13/0/1 result |
-| Root `npm ci` (Vercel/CI install path) | Passed; 124 packages installed, 0 vulnerabilities |
-| JavaScript syntax checks, including root Vercel entry | Passed as part of `npm test` |
+| Explicit syntax checks for `app.js`, `backend/createApp.js`, `backend/runtime.js`, and `backend/server.js` | Passed |
+| Entry-name/export scan | Passed; root `app.js` imports Express and default-exports without `listen()`, factory has no default export, and `backend/app.js` is absent |
+| `git diff --check` | Passed |
 | Runtime production-secret and persistent-session invariants | Passed |
 | Existing health, static frontend, API error, CORS, logging, and validation tests | Passed |
 
@@ -78,20 +112,15 @@ cleanup; that historical result is not a substitute for a fresh Vercel deploymen
 
 ## Remaining manual work
 
-1. Rotate the previously exposed Atlas password and confirm a dedicated user with only `readWrite`
-   on `music-journal`.
-2. Add the Atlas `0.0.0.0/0` Network Access entry required by dynamic Vercel Hobby egress, accepting
-   and mitigating the documented security tradeoff.
-3. Review, commit, and push these changes to `trunk`.
-4. Import `vldstassh/music-journal` into a personal Vercel Hobby account with the exact fields in
-   `DEPLOYMENT.md`.
-5. Add the five Production-only environment variables, deploy, and set Production Branch Tracking
-   to `trunk`.
-6. Complete every HTTPS, health, authentication, account-isolation, persistence, cold-start,
-   session-cookie, Atlas collection, browser exposure, and log check in `DEPLOYMENT.md`.
+1. Review, commit, and push this correction to `trunk`.
+2. Allow Vercel's Git integration to create a new Production deployment, or redeploy the resulting
+   commit from the Vercel Deployments view.
+3. Confirm the build no longer reports `EBADENGINE` or unknown npm project configuration warnings.
+4. Confirm the runtime no longer reports an invalid export for `backend/app.js`.
+5. Run the HTTPS health, authentication, account-isolation, persistence, cold-start, session-cookie,
+   Atlas collection, browser exposure, and log checks in `DEPLOYMENT.md`.
 
-Not yet verified: Vercel account import/framework detection, Vercel's actual build output, a live
-`vercel.app` hostname, provider-managed HTTPS, the owner's Atlas user/access-list state, production
-environment-variable scopes, live cold starts, or end-to-end behavior in the deployed environment.
-Those require external account access and newly rotated secrets. The Vercel CLI was not linked or
-used to build because doing so requires project/account configuration; no deployment was created.
+Not yet verified: Vercel's build output for this correction, the new production Function runtime, or
+the post-redeploy live checks. These require pushing the reviewed commit and observing the external
+deployment. The Vercel CLI has not been linked or used to download any production configuration or
+secrets.

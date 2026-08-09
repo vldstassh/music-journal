@@ -31,7 +31,7 @@ through an Express and MongoDB backend.
 │   ├── models/             # MongoDB persistence and indexes
 │   ├── routes/             # Express API routes
 │   ├── test/               # Node test runner suites
-│   ├── app.js              # Testable Express application factory
+│   ├── createApp.js        # Testable Express application factory
 │   ├── runtime.js          # Shared MongoDB session-store initialization
 │   └── server.js           # Local/traditional process lifecycle
 ├── package.json             # Root npm workspace and Vercel runtime metadata
@@ -42,8 +42,8 @@ through an Express and MongoDB backend.
 
 ## Requirements
 
-- Node.js 24.18.x (Active LTS at the time of the deployment review; see `.nvmrc` and
-  `backend/package.json`).
+- Node.js 24.x. `.nvmrc` pins 24.18.0 for reproducible local and CI checks, while both package
+  manifests accept Vercel-managed Node 24 patch releases.
 - npm.
 - MongoDB, either local or hosted.
 
@@ -183,6 +183,8 @@ npm run test:watch
 - Vercel uses the repository root, installs the npm workspace from the root lockfile, serves
   `public/` from its CDN, and discovers the root `app.js` as the Express Function. No `vercel.json`
   or custom rewrite is needed.
+- The reusable factory is deliberately named `backend/createApp.js`, not `backend/app.js`, so it
+  cannot collide with Vercel's recognized Express entry-point names. It has no default export.
 - `backend/server.js` remains the local/traditional-process entry. It opens a port and handles
   process shutdown; the Vercel entry does neither.
 - The session-store upgrade uses the `sessions_v2` collection. Existing sessions from older

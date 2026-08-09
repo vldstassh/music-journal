@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { createApp } from "../app.js";
+import { createApp } from "../createApp.js";
 
 async function withServer(run) {
 	const server = createApp({ sessionSecret: "integration-test-secret" }).listen(0, "127.0.0.1");

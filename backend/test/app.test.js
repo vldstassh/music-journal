@@ -2,9 +2,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { createApp } from "../createApp.js";
+import { createAuthRateLimiter } from "../middleware/authRateLimit.js";
 
-async function withServer(run) {
-	const server = createApp({ sessionSecret: "integration-test-secret" }).listen(0, "127.0.0.1");
+async function withServer(run, options = {}) {
+	const server = createApp({
+		sessionSecret: "integration-test-secret",
+		...options,
+	}).listen(0, "127.0.0.1");
 	await once(server, "listening");
 	const address = server.address();
 
@@ -21,6 +25,9 @@ test("health endpoint and static frontend are available", async () => {
 		const healthResponse = await fetch(`${baseUrl}/api/health`);
 		assert.equal(healthResponse.status, 200);
 		assert.deepEqual(await healthResponse.json(), { status: "ok" });
+		assert.equal(healthResponse.headers.get("cache-control"), "no-store");
+		assert.match(healthResponse.headers.get("content-security-policy"), /default-src 'self'/);
+		assert.equal(healthResponse.headers.get("cross-origin-opener-policy"), "same-origin");
 		assert.equal(healthResponse.headers.get("x-content-type-options"), "nosniff");
 
 		const frontendResponse = await fetch(baseUrl);
@@ -58,7 +65,50 @@ test("invalid JSON and invalid signup input fail without touching the database",
 		});
 		assert.equal(signupResponse.status, 400);
 		assert.deepEqual(await signupResponse.json(), { error: "Enter a valid email address" });
+
+		const oversizedLoginResponse = await fetch(`${baseUrl}/api/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				email: "person@example.com",
+				password: "🔐".repeat(19),
+			}),
+		});
+		assert.equal(oversizedLoginResponse.status, 400);
+		assert.deepEqual(await oversizedLoginResponse.json(), {
+			error: "Password must be 72 UTF-8 bytes or fewer",
+		});
 	});
+});
+
+test("rate limits repeated signup and login attempts from the same client", async () => {
+	const authRateLimiter = createAuthRateLimiter({ limit: 2, windowMs: 60_000 });
+
+	await withServer(async (baseUrl) => {
+		for (const path of ["/api/login", "/api/signup"]) {
+			const response = await fetch(`${baseUrl}${path}`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ email: "invalid", password: "not-a-valid-password" }),
+			});
+
+			assert.equal(response.status, 400);
+			assert.ok(response.headers.has("ratelimit"));
+			assert.match(response.headers.get("ratelimit-policy"), /authentication/);
+		}
+
+		const blockedResponse = await fetch(`${baseUrl}/api/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email: "invalid", password: "not-a-valid-password" }),
+		});
+
+		assert.equal(blockedResponse.status, 429);
+		assert.deepEqual(await blockedResponse.json(), {
+			error: "Too many authentication attempts. Try again later.",
+		});
+		assert.ok(blockedResponse.headers.has("retry-after"));
+	}, { authRateLimiter });
 });
 
 test("rejects requests from untrusted browser origins", async () => {

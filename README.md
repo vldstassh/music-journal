@@ -1,208 +1,159 @@
 # Music Journal
 
-Music Journal is a responsive mood journal that connects each entry to a song. It works as a
-browser-local journal without an account and can privately synchronize account-scoped entries
-through an Express and MongoDB backend.
+Music Journal is a private mood-and-music journal with an Express 5 API, a dependency-free browser
+frontend, MongoDB persistence, and server-side sessions. The production application is deployed on
+Vercel from the `trunk` branch; the repository root is the Vercel project root.
 
-## Features
+## What it does
 
-- Six mood categories with a 1–10 intensity scale.
-- Song title, artist, optional HTTP(S) link, and journal note fields.
-- Chronological history, mood filtering, aggregate statistics, and JSON export.
-- Anonymous local journals that remain in the current browser.
-- Authenticated journals isolated by account in browser storage and MongoDB.
-- Retryable offline writes with visible sync state and idempotent server persistence.
-- Session-based authentication with normalized email addresses, bcrypt password hashes, logout,
-  and session rotation at sign-in.
-- One-origin deployment: Vercel serves `public/` from its CDN and runs the Express API as one
-  Function; the local Express server serves both.
+- Records a mood, intensity, song, artist, link, and note.
+- Keeps an anonymous browser journal before sign-in.
+- Creates private accounts and syncs each account's entries through MongoDB Atlas.
+- Retries locally queued authenticated entries without duplicating them.
+- Exports the currently loaded journal as JSON.
+- Lets a user clear only Music Journal data cached on the current device. This signs an authenticated
+  user out first and never deletes the account or synced MongoDB entries.
 
-## Repository layout
+## Architecture
 
 ```text
-.
-├── app.js                   # Vercel Express entry; exports without opening a port
-├── public/                  # Static HTML, CSS, configuration, and browser JavaScript
-├── backend/
-│   ├── connection/         # Lazy MongoDB connection lifecycle
-│   ├── controllers/        # HTTP request handling
-│   ├── lib/                # Shared backend validation
-│   ├── middleware/         # Authentication and password helpers
-│   ├── models/             # MongoDB persistence and indexes
-│   ├── routes/             # Express API routes
-│   ├── test/               # Node test runner suites
-│   ├── createApp.js        # Testable Express application factory
-│   ├── runtime.js          # Shared MongoDB session-store initialization
-│   └── server.js           # Local/traditional process lifecycle
-├── package.json             # Root npm workspace and Vercel runtime metadata
-├── DEPLOYMENT.md            # Vercel Hobby and Atlas production runbook
-├── DEPLOYMENT_PROGRESS.md   # Current readiness evidence and remaining manual work
-└── .github/workflows/ci.yml
+app.js                         Vercel entry; default-exports the Express app and never listens
+backend/createApp.js           reusable Express factory and middleware composition
+backend/runtime.js             environment, MongoDB, and sessions_v2 initialization
+backend/server.js              local/traditional Node listener and shutdown handling
+backend/connection/            shared MongoClient and database access
+backend/controllers|models|…   authenticated API implementation
+backend/test/                  unit and HTTP integration tests
+public/                        same-origin static frontend
+vercel.json                    response security headers only
 ```
+
+Root `package.json` owns the npm workspace and `app.js`; root `package-lock.json` is the only lockfile.
+Install and test from the repository root. The backend package remains a private implementation
+workspace and does not advertise a package `main` entry.
 
 ## Requirements
 
-- Node.js 24.x. `.nvmrc` pins 24.18.0 for reproducible local and CI checks, while both package
-  manifests accept Vercel-managed Node 24 patch releases.
-- npm.
-- MongoDB, either local or hosted.
+- Node.js 24 (`.nvmrc` pins the tested 24.18.0 patch; both package engines accept `24.x`)
+- npm 11 or the npm bundled with the pinned Node release
+- MongoDB 7-compatible local service or MongoDB Atlas
 
 ## Local setup
 
-1. Install dependencies.
+```sh
+nvm use
+npm ci
+cp backend/.env.example backend/.env
+```
 
-   ```sh
-   cd backend
-   npm ci
-   ```
+Edit `backend/.env` and set at least:
 
-2. Copy the environment template and edit the values.
+```dotenv
+MONGODB_URI=mongodb://127.0.0.1:27017
+DB_NAME=music-journal-dev
+SESSION_SECRET=replace-with-a-long-random-secret
+```
 
-   ```sh
-   cp .env.example .env
-   ```
+Only `MONGODB_URI` is accepted for MongoDB connectivity. The application has no credential-pair
+fallback and contains no hard-coded Atlas hostname. Do not commit `.env` files.
 
-3. Start the application.
+Start the development server:
 
-   ```sh
-   npm run dev
-   ```
+```sh
+npm run dev
+```
 
-4. Open `http://localhost:3000`. The sign-in page is available at
-   `http://localhost:3000/login.html`.
+Then open `http://localhost:3000`. For a database-free local smoke test, set
+`SESSION_STORE=memory`; production ignores that setting and requires MongoDB-backed sessions.
 
-Use `npm start` instead of `npm run dev` when automatic restart is not needed.
+## Root commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm ci` | Reproduce the complete workspace install from the root lockfile |
+| `npm start` | Run the traditional Node server |
+| `npm run dev` | Run the server with nodemon |
+| `npm run check` | Syntax-check application and browser JavaScript |
+| `npm test` | Run syntax checks and the complete default test suite |
+| `npm run test:watch` | Run the Node test runner in watch mode |
+
+CI uses exactly `npm ci` followed by `npm test` from the repository root.
 
 ## Configuration
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `MONGODB_URI` | Yes | MongoDB connection string. |
-| `DB_NAME` | Yes | Database containing users, moods, and sessions. |
-| `SESSION_SECRET` | Production | Long random value used to sign session cookies. |
-| `PORT` | No | HTTP port; defaults to `3000`. |
-| `NODE_ENV` | No | Set to `production` in production. |
-| `CORS_ORIGIN` | Cross-origin only | Comma-separated list of allowed frontend origins. |
-| `COOKIE_SAMESITE` | No | `lax`, `strict`, or `none`; defaults to the safer `lax` value. |
-| `SESSION_STORE` | Local checks only | Set to `memory` to start without the persistent session store outside production. |
+| `MONGODB_URI` | Yes, except local MemoryStore smoke tests | Complete MongoDB connection URI; secret in production |
+| `DB_NAME` | Yes with MongoDB | Database name (`music-journal` in production) |
+| `SESSION_SECRET` | Yes in production | At least 32 characters in production |
+| `NODE_ENV` | Production deployment | Use `production` on Vercel |
+| `PORT` | No | Traditional server port; defaults to `3000` |
+| `COOKIE_SAMESITE` | No | `lax`, `strict`, or `none`; defaults to `lax` |
+| `CORS_ORIGIN` | No | Comma-separated additional browser origins |
+| `SESSION_STORE` | Local only | `memory` enables non-persistent development sessions |
 
-`DB_USER` and `DB_PASSWORD` remain supported for the original Atlas cluster configuration, but
-`MONGODB_URI` is preferred because it does not couple the application to one provider or cluster.
+The deployed frontend and API are same-origin. If a separate frontend is introduced, update both
+`CORS_ORIGIN` and the `connect-src` policy in `backend/lib/securityHeaders.js` and `vercel.json`.
 
-For a frontend hosted on another origin, set `CORS_ORIGIN` on the server and set the API base URL
-before loading the browser scripts:
+## Tests
 
-```js
-window.MUSIC_JOURNAL_API_BASE = "https://api.example.com";
-```
-
-`public/config.js` is the deployment-time location for that value. A developer can also set
-`localStorage.musicJournalApiBase` temporarily in the browser.
-
-## Data and synchronization behavior
-
-Anonymous and authenticated journals intentionally use separate local-storage keys. Signing in
-does not silently upload anonymous entries or merge one browser user's cache into another account.
-This avoids cross-account journal disclosure on a shared device.
-
-Entries created while a signed-in account is temporarily offline are marked as waiting to sync.
-The browser retries when it returns online or becomes visible. Every client entry has an idempotency
-key, and the backend enforces one entry per account and client key, so a retry cannot create a
-duplicate entry.
-
-Existing data from the former global `musicJournalEntries` key is migrated once to the anonymous
-journal. It remains available locally and is included in exports.
-
-## API
-
-All request and response bodies use JSON unless a response has no content. Authenticated endpoints
-use the `music-journal.sid` HTTP-only cookie.
-
-| Method | Path | Authentication | Description |
-| --- | --- | --- | --- |
-| `GET` | `/api/health` | No | Liveness response: `{ "status": "ok" }`. |
-| `POST` | `/api/signup` | No | Create an account and establish a session. |
-| `POST` | `/api/login` | No | Establish a new, rotated session. |
-| `POST` | `/api/logout` | No | Destroy the current session. |
-| `GET` | `/api/user` | Yes | Return the current user's ID and email. |
-| `GET` | `/api/moods` | Yes | Return `{ "data": [...] }` for the current account. |
-| `POST` | `/api/moods` | Yes | Validate and idempotently create a journal entry. |
-
-Sign-up and login accept `email` and `password`. New passwords must contain at least 8 characters
-and no more than 72 UTF-8 bytes, matching bcrypt's safe input boundary.
-Mood creation accepts:
-
-- `mood`: one of `Joyful`, `Calm`, `Focused`, `Anxious`, `Sad`, or `Angry`.
-- `intensity`: an integer from 1 through 10.
-- `songTitle`: required, at most 200 characters.
-- `artist`: optional, at most 200 characters.
-- `songLink`: optional valid HTTP(S) URL.
-- `note`: optional, at most 5,000 characters.
-- `clientId`: optional retry/idempotency key generated by the browser.
-
-Errors use a consistent `{ "error": "Human-readable message" }` shape. Unexpected database and
-server errors are logged server-side without exposing internal details to clients.
-
-## Quality checks
-
-Run the complete local verification from the repository root:
+The default command performs no live database writes:
 
 ```sh
-npm ci
-npm --prefix backend test
+npm test
 ```
 
-This command syntax-checks every server and browser JavaScript file, then runs validation and HTTP
-integration tests with Node's built-in test runner. The integration tests use an in-memory session
-store and do not require MongoDB. CI runs these commands for pull requests and pushes to `trunk`.
-Install-time dependency scripts are denied unless their exact reviewed package version appears in
-the root `package.json`'s `allowScripts` policy. An isolated backend install with
-`npm --prefix backend ci` remains supported for local work.
+The MongoDB integration test is gated. It exercises the configured runtime, a real
+`connect-mongo` store in `sessions_v2`, signup, cookie authentication, session persistence and TTL
+indexing, journal persistence/idempotency, generic rejected-login behavior, logout deletion, and
+rejection of the old cookie. It creates UUID-scoped data and removes it afterward.
 
-The MongoDB integration suite is gated to avoid changing a developer database accidentally. It
-creates isolated records, verifies signup, sessions, idempotent mood creation, retrieval, and logout,
-then removes its records:
+Run it only against a dedicated disposable test database:
 
 ```sh
-RUN_DB_TESTS=1 MONGODB_URI='mongodb://127.0.0.1:27017' DB_NAME='music-journal' \
-  node --test test/database.integration.test.js
+RUN_DB_TESTS=1 \
+MONGODB_URI='mongodb+srv://TEST_USER:TEST_PASSWORD@TEST_CLUSTER/' \
+DB_NAME='music-journal-test' \
+npm test
 ```
 
-For rapid test development:
+The guard requires both connection variables, always rejects `DB_NAME=music-journal`, and normally
+requires the database name to contain `test`. An advanced exception exists only for an isolated,
+disposable database: set `ALLOW_NON_TEST_DB_NAME` to the exact acknowledgement constant defined in
+`backend/testSupport/databaseSafety.js`. Never use that override to target production.
 
-```sh
-npm run test:watch
-```
+## Security and privacy
 
-## Deployment notes
+- Passwords use bcrypt with cost 12. Signup requires eight characters; signup and login both reject
+  values over bcrypt's 72 UTF-8-byte input boundary. The browser calculates bytes with
+  `TextEncoder`, so multibyte passwords receive the same validation as the API.
+- Login failures remain generic and do not disclose whether an email exists.
+- Signup and login share a best-effort per-IP limit of 10 POST attempts per 15 minutes, respond with
+  `429`, and send standard `RateLimit` and `Retry-After` headers. The in-memory counter is local to a
+  warm Vercel Function instance; configure the included Vercel Hobby WAF rate-limit rule described
+  in `DEPLOYMENT.md` for globally consistent edge enforcement.
+- Production sessions are stored in `sessions_v2` for seven days. Cookies are `HttpOnly`, `Secure`,
+  and `SameSite=Lax`; session IDs are regenerated after signup and login and destroyed on logout.
+- API responses omit password hashes and mood ownership identifiers. User-scoped database queries
+  enforce journal isolation.
+- Express and Vercel responses share a restrictive Content Security Policy and security headers.
+  HSTS is intentionally not configured until a custom-domain/HTTPS preload decision is made.
+- “Clear local data” removes only this application's legacy, anonymous, per-user cache, and optional
+  API-base keys. It never uses `localStorage.clear()` and never deletes server-side records.
 
-- The production target is one personal, non-commercial Vercel Hobby project backed by MongoDB
-  Atlas. Follow [`DEPLOYMENT.md`](DEPLOYMENT.md) for exact project fields, secret scopes, Atlas
-  Network Access, verification, limits, and rollback instructions. Current readiness evidence is
-  recorded in [`DEPLOYMENT_PROGRESS.md`](DEPLOYMENT_PROGRESS.md).
-- Vercel uses the repository root, installs the npm workspace from the root lockfile, serves
-  `public/` from its CDN, and discovers the root `app.js` as the Express Function. No `vercel.json`
-  or custom rewrite is needed.
-- The reusable factory is deliberately named `backend/createApp.js`, not `backend/app.js`, so it
-  cannot collide with Vercel's recognized Express entry-point names. It has no default export.
-- `backend/server.js` remains the local/traditional-process entry. It opens a port and handles
-  process shutdown; the Vercel entry does neither.
-- The session-store upgrade uses the `sessions_v2` collection. Existing sessions from older
-  deployments are intentionally invalidated once; users will need to sign in again.
-- Warm Vercel requests reuse the module-scoped MongoDB connection promise. Authentication, entries,
-  and sessions remain in Atlas rather than function memory.
-- Use HTTPS in production. Production cookies are secure by default.
-- Use a long, unique `SESSION_SECRET` and a least-privileged MongoDB account.
-- Keep production database credentials scoped to Vercel Production only. Use a separate database
-  and user if Preview API testing is later enabled.
-- Configure `CORS_ORIGIN` only when the frontend is genuinely deployed separately.
-- For a genuinely cross-site frontend, use HTTPS and explicitly set `COOKIE_SAMESITE=none`.
-- Do not use `SESSION_STORE=memory` in production; it is explicitly ignored there.
-- The health endpoint does not query MongoDB, so it reports HTTP-process liveness rather than
-  database readiness.
+## Dependency policy
 
-## Development workflow
+The root lockfile is the reproducible install authority. The root `allowScripts` manifest field
+records the reviewed lifecycle-script dependencies required by this tree. Current npm warns about
+unreviewed scripts by default; the repository deliberately has no project `.npmrc` and does not use
+the previously warning-producing project configuration on Vercel. Treat any new install-script,
+integrity, engine, deprecation, or audit warning as a review failure before release.
 
-The repository uses trunk-based development. Branch short-lived work from `trunk`, keep changes
-focused, run `npm test`, and integrate back into `trunk` through the repository's normal review
-process.
+The repository and both npm packages are private and `UNLICENSED`; no permission to redistribute is
+granted.
+
+## Deployment
+
+Production deployment and verification instructions are in [DEPLOYMENT.md](DEPLOYMENT.md). The
+resolved Vercel entry-detection incident is recorded in
+[DEPLOYMENT_PROGRESS.md](DEPLOYMENT_PROGRESS.md).

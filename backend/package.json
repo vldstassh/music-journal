@@ -11,12 +11,12 @@
     "type": "git",
     "url": "git+https://github.com/vldstassh/music-journal.git"
   },
-  "license": "ISC",
+  "license": "UNLICENSED",
   "author": "",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check ../app.js && node --check createApp.js && node --check runtime.js && node --check server.js && node --check connection/connection.js && node --check controllers/authController.js && node --check controllers/moodController.js && node --check lib/logging.js && node --check lib/validation.js && node --check middleware/auth.js && node --check middleware/passwordHash.js && node --check models/authModel.js && node --check models/moodModel.js && node --check routes/authRouter.js && node --check routes/moodRoutes.js && node --check ../public/config.js && node --check ../public/script.js && node --check ../public/login.js",
+    "check": "node --check ../app.js && node --check createApp.js && node --check runtime.js && node --check server.js && node --check connection/connection.js && node --check controllers/authController.js && node --check controllers/moodController.js && node --check lib/logging.js && node --check lib/securityHeaders.js && node --check lib/validation.js && node --check middleware/auth.js && node --check middleware/authRateLimit.js && node --check middleware/passwordHash.js && node --check models/authModel.js && node --check models/moodModel.js && node --check routes/authRouter.js && node --check routes/moodRoutes.js && node --check testSupport/databaseSafety.js && node --check ../public/config.js && node --check ../public/script.js && node --check ../public/login.js",
     "test": "npm run check && node --test",
     "test:watch": "node --test --watch",
     "dev": "nodemon server.js"
@@ -29,6 +29,7 @@
     "connect-mongo": "^6.0.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.6.2",
     "express-session": "^1.19.0",
     "mongodb": "^7.5.0"
   },

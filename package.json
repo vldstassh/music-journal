@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Personal mood journal with an Express API and MongoDB persistence",
   "private": true,
+  "license": "UNLICENSED",
   "type": "module",
   "main": "app.js",
   "workspaces": [
@@ -12,7 +13,8 @@
     "start": "npm --workspace music-journal-backend start",
     "dev": "npm --workspace music-journal-backend run dev",
     "check": "npm --workspace music-journal-backend run check",
-    "test": "npm --workspace music-journal-backend test"
+    "test": "npm --workspace music-journal-backend test",
+    "test:watch": "npm --workspace music-journal-backend run test:watch"
   },
   "engines": {
     "node": "24.x"

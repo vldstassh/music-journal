@@ -19,6 +19,7 @@ const entryCount = document.querySelector("#entryCount");
 const topMood = document.querySelector("#topMood");
 const averageIntensity = document.querySelector("#averageIntensity");
 const clearForm = document.querySelector("#clearForm");
+const clearLocalDataButton = document.querySelector("#clearLocalDataButton");
 const exportEntries = document.querySelector("#exportEntries");
 const signInLink = document.querySelector("#signInLink");
 const accountActions = document.querySelector("#accountActions");
@@ -61,6 +62,27 @@ function removeStoredValue(key) {
 	} catch {
 		// Storage may be unavailable in privacy-restricted browsing contexts.
 	}
+}
+
+function removeMusicJournalLocalData() {
+	const keysToRemove = new Set([
+		LEGACY_STORAGE_KEY,
+		ANONYMOUS_STORAGE_KEY,
+		"musicJournalApiBase",
+	]);
+
+	try {
+		for (let index = 0; index < localStorage.length; index += 1) {
+			const key = localStorage.key(index);
+			if (key?.startsWith(USER_STORAGE_PREFIX)) {
+				keysToRemove.add(key);
+			}
+		}
+	} catch {
+		// Known keys are still removed individually when storage enumeration is unavailable.
+	}
+
+	keysToRemove.forEach(removeStoredValue);
 }
 
 function migrateLegacyEntries() {
@@ -460,6 +482,44 @@ logoutButton.addEventListener("click", async () => {
 	}
 });
 
+clearLocalDataButton.addEventListener("click", async () => {
+	const warning = currentUser
+		? "Clear Music Journal data cached on this device and sign out? Your account and synced journal entries in MongoDB will not be deleted. Any entries still waiting to sync will be lost."
+		: "Clear Music Journal data stored in this browser? This does not delete any account or synced journal entries in MongoDB.";
+
+	if (!window.confirm(warning)) {
+		return;
+	}
+
+	clearLocalDataButton.disabled = true;
+	try {
+		if (currentUser) {
+			await apiRequest("/api/logout", { method: "POST" });
+		}
+
+		removeMusicJournalLocalData();
+		if (currentUser) {
+			window.location.replace("login.html");
+			return;
+		}
+
+		storageKey = ANONYMOUS_STORAGE_KEY;
+		entries = [];
+		moodFilter.value = "all";
+		resetForm();
+		renderEntries();
+		setSyncStatus("Local data cleared");
+		setMessage("Local browser data cleared. Synced account data was not deleted.");
+	} catch (error) {
+		setMessage(
+			error.message || "Could not sign out before clearing local data",
+			{ isError: true },
+		);
+	} finally {
+		clearLocalDataButton.disabled = false;
+	}
+});
+
 window.addEventListener("online", () => syncEntries());
 document.addEventListener("visibilitychange", () => {
 	if (document.visibilityState === "visible") {
@@ -472,4 +532,6 @@ entries = loadEntries();
 updateMoodFilter();
 renderEntries();
 updateAccountUi();
-initializeSession();
+initializeSession().finally(() => {
+	clearLocalDataButton.disabled = false;
+});

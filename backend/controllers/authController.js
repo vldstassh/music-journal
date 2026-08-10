@@ -75,7 +75,7 @@ export async function signupUserController(req, res) {
 
 export async function loginUserController(req, res) {
 	const emailResult = validateEmail(req.body?.email);
-	const passwordResult = validatePassword(req.body?.password);
+	const passwordResult = validatePassword(req.body?.password, { maximumBytes: 72 });
 
 	if (emailResult.error || passwordResult.error) {
 		return res.status(400).json({ error: emailResult.error || passwordResult.error });

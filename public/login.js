@@ -6,6 +6,7 @@ const authTabs = document.querySelectorAll("[data-auth-mode]");
 const loginMessage = document.querySelector("#loginMessage");
 const passwordHint = document.querySelector("#passwordHint");
 let authMode = "login";
+const MAX_PASSWORD_BYTES = 72;
 
 function getStoredValue(key) {
 	try {
@@ -47,7 +48,9 @@ function setAuthMode(nextMode) {
 	authSubmit.textContent = isSignup ? "Create account" : "Sign in";
 	authForm.elements.password.autocomplete = isSignup ? "new-password" : "current-password";
 	authForm.elements.password.minLength = isSignup ? 8 : 1;
-	passwordHint.textContent = isSignup ? "Use 8–72 characters." : "";
+	passwordHint.textContent = isSignup
+		? "Use at least 8 characters and no more than 72 UTF-8 bytes."
+		: "Passwords are limited to 72 UTF-8 bytes.";
 	showMessage("");
 
 	authTabs.forEach((tab) => {
@@ -75,6 +78,13 @@ authForm.addEventListener("submit", async (event) => {
 	const email = String(formData.get("email") || "").trim().toLowerCase();
 	const password = String(formData.get("password") || "");
 	const endpoint = authMode === "signup" ? "/api/signup" : "/api/login";
+	if (new TextEncoder().encode(password).length > MAX_PASSWORD_BYTES) {
+		showMessage(
+			"Password is too long. Use a password that fits within 72 UTF-8 bytes.",
+			{ isError: true },
+		);
+		return;
+	}
 
 	authSubmit.disabled = true;
 	try {

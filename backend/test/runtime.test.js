@@ -5,6 +5,7 @@ import {
 	SESSION_COLLECTION_NAME,
 	SESSION_TTL_SECONDS,
 } from "../runtime.js";
+import { getMongoUrl } from "../connection/connection.js";
 
 const MANAGED_VARIABLES = [
 	"NODE_ENV",
@@ -12,6 +13,7 @@ const MANAGED_VARIABLES = [
 	"SESSION_SECRET",
 	"SESSION_STORE",
 	"DB_NAME",
+	"MONGODB_URI",
 ];
 
 function withEnvironment(values, run) {
@@ -69,4 +71,14 @@ test("production runtime rejects a weak session secret", () => {
 test("session storage constants preserve the production contract", () => {
 	assert.equal(SESSION_COLLECTION_NAME, "sessions_v2");
 	assert.equal(SESSION_TTL_SECONDS, 60 * 60 * 24 * 7);
+});
+
+test("MongoDB connectivity accepts only the complete MONGODB_URI", () => {
+	withEnvironment({}, () => {
+		assert.throws(() => getMongoUrl(), /Missing MONGODB_URI environment variable/);
+	});
+
+	withEnvironment({ MONGODB_URI: "mongodb://database.example.invalid:27017" }, () => {
+		assert.equal(getMongoUrl(), "mongodb://database.example.invalid:27017");
+	});
 });

@@ -6,6 +6,8 @@ import authRoutes from "./routes/authRouter.js";
 import moodRoutes from "./routes/moodRoutes.js";
 import { SESSION_COOKIE_NAME } from "./controllers/authController.js";
 import { summarizeError } from "./lib/logging.js";
+import { setSecurityHeaders } from "./lib/securityHeaders.js";
+import { createAuthRateLimiter } from "./middleware/authRateLimit.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const publicDirectory = path.resolve(currentDirectory, "../public");
@@ -52,16 +54,9 @@ function createCorsMiddleware(allowedOrigins) {
 	};
 }
 
-function setSecurityHeaders(_req, res, next) {
-	res.setHeader("Referrer-Policy", "same-origin");
-	res.setHeader("X-Content-Type-Options", "nosniff");
-	res.setHeader("X-Frame-Options", "DENY");
-	res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-	return next();
-}
-
 export function createApp({
 	application,
+	authRateLimiter = createAuthRateLimiter(),
 	sessionStore,
 	sessionSecret = "test-session-secret",
 	isProduction = false,
@@ -77,6 +72,11 @@ export function createApp({
 	app.set("trust proxy", isProduction ? 1 : false);
 	app.use(setSecurityHeaders);
 	app.use(createCorsMiddleware(allowedOrigins));
+	app.use("/api", (_req, res, next) => {
+		res.setHeader("Cache-Control", "no-store");
+		return next();
+	});
+	app.use(["/api/login", "/api/signup"], authRateLimiter);
 	app.use(express.json({ limit: "32kb" }));
 
 	app.get("/api/health", (_req, res) => {

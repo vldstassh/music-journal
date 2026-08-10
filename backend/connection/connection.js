@@ -8,17 +8,11 @@ let db;
 let connectionPromise;
 
 export function getMongoUrl() {
-	if (process.env.MONGODB_URI) {
-		return process.env.MONGODB_URI;
+	if (!process.env.MONGODB_URI) {
+		throw new Error("Missing MONGODB_URI environment variable");
 	}
 
-	if (!process.env.DB_USER || !process.env.DB_PASSWORD) {
-		throw new Error("Missing MONGODB_URI (or legacy DB_USER and DB_PASSWORD) environment variable");
-	}
-
-	const user = encodeURIComponent(process.env.DB_USER);
-	const password = encodeURIComponent(process.env.DB_PASSWORD);
-	return `mongodb+srv://${user}:${password}@music-journal.85gqdwy.mongodb.net/?appName=music-journal`;
+	return process.env.MONGODB_URI;
 }
 
 export function getDbName() {

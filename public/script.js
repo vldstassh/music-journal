@@ -1,7 +1,10 @@
 const LEGACY_STORAGE_KEY = "musicJournalEntries";
 const ANONYMOUS_STORAGE_KEY = "musicJournalEntries:anonymous";
 const USER_STORAGE_PREFIX = "musicJournalEntries:user:";
-const API_BASE = globalThis.MUSIC_JOURNAL_API_BASE || getStoredValue("musicJournalApiBase") || "";
+const API_BASE =
+	globalThis.MUSIC_JOURNAL_API_BASE ||
+	getStoredValue("musicJournalApiBase") ||
+	"";
 const MOODS = ["Joyful", "Calm", "Focused", "Anxious", "Sad", "Angry"];
 
 const form = document.querySelector("#journalForm");
@@ -91,7 +94,10 @@ function migrateLegacyEntries() {
 	}
 
 	const legacyEntries = getStoredValue(LEGACY_STORAGE_KEY);
-	if (legacyEntries !== null && setStoredValue(ANONYMOUS_STORAGE_KEY, legacyEntries)) {
+	if (
+		legacyEntries !== null &&
+		setStoredValue(ANONYMOUS_STORAGE_KEY, legacyEntries)
+	) {
 		removeStoredValue(LEGACY_STORAGE_KEY);
 	}
 }
@@ -111,7 +117,9 @@ function normalizeHttpUrl(value) {
 
 	try {
 		const url = new URL(value.trim());
-		return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+		return url.protocol === "http:" || url.protocol === "https:"
+			? url.toString()
+			: "";
 	} catch {
 		return "";
 	}
@@ -124,11 +132,18 @@ function normalizeEntry(entry, { pending = Boolean(entry?.pending) } = {}) {
 
 	const mood = MOODS.includes(entry.mood) ? entry.mood : null;
 	const intensityNumber = Number(entry.intensity);
-	const songTitle = typeof (entry.songTitle || entry.song) === "string"
-		? (entry.songTitle || entry.song).trim()
-		: "";
+	const songTitle =
+		typeof (entry.songTitle || entry.song) === "string"
+			? (entry.songTitle || entry.song).trim()
+			: "";
 
-	if (!mood || !Number.isInteger(intensityNumber) || intensityNumber < 1 || intensityNumber > 10 || !songTitle) {
+	if (
+		!mood ||
+		!Number.isInteger(intensityNumber) ||
+		intensityNumber < 1 ||
+		intensityNumber > 10 ||
+		!songTitle
+	) {
 		return null;
 	}
 
@@ -142,10 +157,18 @@ function normalizeEntry(entry, { pending = Boolean(entry?.pending) } = {}) {
 		mood,
 		intensity: intensityNumber,
 		songTitle: songTitle.slice(0, 200),
-		artist: typeof entry.artist === "string" ? entry.artist.trim().slice(0, 200) : "",
+		artist:
+			typeof entry.artist === "string"
+				? entry.artist.trim().slice(0, 200)
+				: "",
 		songUrl: normalizeHttpUrl(entry.songUrl || entry.songLink || entry.url),
-		note: typeof entry.note === "string" ? entry.note.trim().slice(0, 5000) : "",
-		createdAt: Number.isNaN(parsedDate.getTime()) ? new Date().toISOString() : parsedDate.toISOString(),
+		note:
+			typeof entry.note === "string"
+				? entry.note.trim().slice(0, 5000)
+				: "",
+		createdAt: Number.isNaN(parsedDate.getTime())
+			? new Date().toISOString()
+			: parsedDate.toISOString(),
 		pending,
 	};
 }
@@ -154,7 +177,9 @@ function loadEntries(key = storageKey) {
 	try {
 		const storedEntries = JSON.parse(getStoredValue(key) || "[]");
 		return Array.isArray(storedEntries)
-			? storedEntries.map((entry) => normalizeEntry(entry)).filter(Boolean)
+			? storedEntries
+					.map((entry) => normalizeEntry(entry))
+					.filter(Boolean)
 			: [];
 	} catch {
 		return [];
@@ -238,10 +263,16 @@ function renderStats() {
 		totals.set(entry.mood, (totals.get(entry.mood) || 0) + 1);
 		return totals;
 	}, new Map());
-	const highestMood = MOODS.reduce((top, mood) => (
-		(moodTotals.get(mood) || 0) > (moodTotals.get(top) || 0) ? mood : top
-	), MOODS[0]);
-	const average = entries.reduce((sum, entry) => sum + entry.intensity, 0) / entries.length;
+	const highestMood = MOODS.reduce(
+		(top, mood) =>
+			(moodTotals.get(mood) || 0) > (moodTotals.get(top) || 0)
+				? mood
+				: top,
+		MOODS[0],
+	);
+	const average =
+		entries.reduce((sum, entry) => sum + entry.intensity, 0) /
+		entries.length;
 
 	topMood.textContent = highestMood;
 	averageIntensity.textContent = average.toFixed(1);
@@ -250,19 +281,29 @@ function renderStats() {
 function renderEntries() {
 	const selectedMood = moodFilter.value || "all";
 	const filteredEntries = entries
-		.filter((entry) => selectedMood === "all" || entry.mood === selectedMood)
+		.filter(
+			(entry) => selectedMood === "all" || entry.mood === selectedMood,
+		)
 		.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
 	timeline.replaceChildren();
 	filteredEntries.forEach((entry) => {
 		const item = template.content.cloneNode(true);
-		item.querySelector(".entry-date").textContent = formatDate(entry.createdAt);
+		item.querySelector(".entry-date").textContent = formatDate(
+			entry.createdAt,
+		);
 		item.querySelector(".entry-mood").textContent = entry.mood;
-		item.querySelector(".entry-intensity").textContent = `Intensity ${entry.intensity}/10`;
+		item.querySelector(".entry-intensity").textContent =
+			`Intensity ${entry.intensity}/10`;
 		item.querySelector("h3").textContent = entry.songTitle;
-		item.querySelector(".entry-artist").textContent = entry.artist || "Unknown artist";
-		item.querySelector(".entry-note").textContent = entry.note || "No note added.";
-		item.querySelector(".entry-sync").classList.toggle("is-hidden", !entry.pending);
+		item.querySelector(".entry-artist").textContent =
+			entry.artist || "Unknown artist";
+		item.querySelector(".entry-note").textContent =
+			entry.note || "No note added.";
+		item.querySelector(".entry-sync").classList.toggle(
+			"is-hidden",
+			!entry.pending,
+		);
 
 		const link = item.querySelector(".entry-link");
 		if (entry.songUrl) {
@@ -281,7 +322,8 @@ function renderEntries() {
 		emptyStateMessage.textContent = `There are no ${selectedMood.toLowerCase()} entries yet.`;
 	} else {
 		emptyStateTitle.textContent = "No entries yet";
-		emptyStateMessage.textContent = "Your first mood and song will appear here.";
+		emptyStateMessage.textContent =
+			"Your first mood and song will appear here.";
 	}
 
 	renderStats();
@@ -300,10 +342,15 @@ async function apiRequest(path, options = {}) {
 		...options,
 	});
 	const contentType = response.headers.get("content-type") || "";
-	const payload = contentType.includes("application/json") ? await response.json() : null;
+	const payload = contentType.includes("application/json")
+		? await response.json()
+		: null;
 
 	if (!response.ok) {
-		throw new ApiError(payload?.error || `Request failed with status ${response.status}`, response.status);
+		throw new ApiError(
+			payload?.error || `Request failed with status ${response.status}`,
+			response.status,
+		);
 	}
 
 	return payload;
@@ -356,16 +403,22 @@ async function syncEntries() {
 					headers: { "Content-Type": "application/json" },
 					body: entryRequestBody(pendingEntry),
 				});
-				const remoteEntry = normalizeEntry(result.data, { pending: false });
+				const remoteEntry = normalizeEntry(result.data, {
+					pending: false,
+				});
 				if (remoteEntry) {
-					entries = entries.map((entry) => entry.id === pendingEntry.id ? remoteEntry : entry);
+					entries = entries.map((entry) =>
+						entry.id === pendingEntry.id ? remoteEntry : entry,
+					);
 					saveEntries();
 					renderEntries();
 				}
 			}
 
 			const result = await apiRequest("/api/moods");
-			const remoteEntries = (Array.isArray(result) ? result : result?.data || [])
+			const remoteEntries = (
+				Array.isArray(result) ? result : result?.data || []
+			)
 				.map((entry) => normalizeEntry(entry, { pending: false }))
 				.filter(Boolean);
 			const unsyncedEntries = entries.filter((entry) => entry.pending);
@@ -376,12 +429,19 @@ async function syncEntries() {
 		} catch (error) {
 			if (error instanceof ApiError && error.status === 401) {
 				useAnonymousJournal("Session expired");
-				setMessage("Your session expired. Sign in to resume syncing.", { isError: true });
+				setMessage("Your session expired. Sign in to resume syncing.", {
+					isError: true,
+				});
 				return;
 			}
 
-			const pendingCount = entries.filter((entry) => entry.pending).length;
-			setSyncStatus(pendingCount ? `${pendingCount} waiting to sync` : "Offline", pendingCount ? "pending" : "local");
+			const pendingCount = entries.filter(
+				(entry) => entry.pending,
+			).length;
+			setSyncStatus(
+				pendingCount ? `${pendingCount} waiting to sync` : "Offline",
+				pendingCount ? "pending" : "local",
+			);
 		}
 	})().finally(() => {
 		syncPromise = null;
@@ -403,7 +463,11 @@ async function initializeSession() {
 		switchStorage(`${USER_STORAGE_PREFIX}${currentUser.id}`);
 		await syncEntries();
 	} catch (error) {
-		useAnonymousJournal(error instanceof ApiError && error.status === 401 ? "Local journal" : "Offline journal");
+		useAnonymousJournal(
+			error instanceof ApiError && error.status === 401
+				? "Local journal"
+				: "Offline journal",
+		);
 	}
 }
 
@@ -418,22 +482,27 @@ form.addEventListener("submit", async (event) => {
 	const formData = new FormData(form);
 	const songUrl = String(formData.get("songUrl") || "").trim();
 	if (songUrl && !normalizeHttpUrl(songUrl)) {
-		setMessage("Song link must be a valid http or https URL.", { isError: true });
+		setMessage("Song link must be a valid http or https URL.", {
+			isError: true,
+		});
 		return;
 	}
 
 	const id = createId();
-	const entry = normalizeEntry({
-		id,
-		clientId: id,
-		mood: formData.get("mood"),
-		intensity: formData.get("intensity"),
-		songTitle: formData.get("songTitle"),
-		artist: formData.get("artist"),
-		songUrl,
-		note: formData.get("note"),
-		createdAt: new Date().toISOString(),
-	}, { pending: Boolean(currentUser) });
+	const entry = normalizeEntry(
+		{
+			id,
+			clientId: id,
+			mood: formData.get("mood"),
+			intensity: formData.get("intensity"),
+			songTitle: formData.get("songTitle"),
+			artist: formData.get("artist"),
+			songUrl,
+			note: formData.get("note"),
+			createdAt: new Date().toISOString(),
+		},
+		{ pending: Boolean(currentUser) },
+	);
 
 	if (!entry) {
 		setMessage("Check the entry fields and try again.", { isError: true });
@@ -444,7 +513,9 @@ form.addEventListener("submit", async (event) => {
 	saveEntries();
 	renderEntries();
 	resetForm();
-	setMessage(currentUser ? "Entry saved; syncing…" : "Entry saved to this browser");
+	setMessage(
+		currentUser ? "Entry saved; syncing…" : "Entry saved to this browser",
+	);
 	await syncEntries();
 });
 
@@ -461,7 +532,9 @@ exportEntries.addEventListener("click", () => {
 	}
 
 	const exportedEntries = entries.map(({ pending, ...entry }) => entry);
-	const blob = new Blob([JSON.stringify(exportedEntries, null, 2)], { type: "application/json" });
+	const blob = new Blob([JSON.stringify(exportedEntries, null, 2)], {
+		type: "application/json",
+	});
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement("a");
 	link.href = url;
@@ -509,7 +582,9 @@ clearLocalDataButton.addEventListener("click", async () => {
 		resetForm();
 		renderEntries();
 		setSyncStatus("Local data cleared");
-		setMessage("Local browser data cleared. Synced account data was not deleted.");
+		setMessage(
+			"Local browser data cleared. Synced account data was not deleted.",
+		);
 	} catch (error) {
 		setMessage(
 			error.message || "Could not sign out before clearing local data",

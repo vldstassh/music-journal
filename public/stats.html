@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta name="description" content="Stats page for Music Journal, a web application for tracking and analyzing music listening habits.">
+		<title>Sign in | Music Journal</title>
+		<link rel="stylesheet" href="styles.css">
+	</head>
+	<body>
+		<div class="app-shell">
+			<header class="app-header">
+				<div>
+					<p class="eyebrow">Mood-Based Music Journal</p>
+					<h1>Music Journal</h1>
+				</div>
+				<div class="header-actions">
+					<button class="secondary-button" id="clearLocalDataButton" type="button" disabled>Clear local data</button>
+					<a class="secondary-button" id="signInLink" href="login.html">Sign in</a>
+					<div class="account-actions is-hidden" id="accountActions">
+						<span class="account-email" id="accountEmail"></span>
+						<button class="secondary-button" id="logoutButton" type="button">Sign out</button>
+					</div>
+					<div class="sync-pill" id="syncStatus" role="status">Checking connection…</div>
+				</div>
+			</header>
+
+			<section>
+				<h2 style="margin-bottom: 16px;">Statistics</h2>
+				<div class="stats-grid">
+					<div>
+						<span id="averageIntensity">6.4</span>
+						<p>Average intensity</p>
+					</div>
+					<div>
+						<span id="totalEntries">42</span>
+						<p>Total entries</p>
+					</div>
+					<div>
+						<span id="favoriteGenre">—</span>
+						<p>Most played</p>
+					</div>
+				</div>
+			</section>
+
+			<section style="margin-top: 32px;">
+				<div class="workspace">
+					<div class="history-panel">
+						<div class="section-heading">
+							<h2>Moods</h2>
+						</div>
+						<canvas id="mood-chart" style="width: 100%; max-height: 300px;"></canvas>
+					</div>
+					<div class="history-panel">
+						<div class="section-heading">
+							<h2>Intensity over time</h2>
+						</div>
+						<canvas id="intensity-chart" style="width: 100%; max-height: 300px;"></canvas>
+					</div>
+				</div>
+			</section>
+
+		</div>
+
+		<script type="module" src="stats.js"></script>
+	</body>
+
+</html>

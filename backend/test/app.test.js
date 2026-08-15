@@ -33,6 +33,17 @@ test("health endpoint and static frontend are available", async () => {
 		const frontendResponse = await fetch(baseUrl);
 		assert.equal(frontendResponse.status, 200);
 		assert.match(await frontendResponse.text(), /<title>Music Journal<\/title>/);
+
+		const statsResponse = await fetch(`${baseUrl}/stats.html`);
+		assert.equal(statsResponse.status, 200);
+		const statsHtml = await statsResponse.text();
+		assert.match(statsHtml, /<title>Statistics \| Music Journal<\/title>/);
+		assert.doesNotMatch(statsHtml, /\sstyle=/);
+		assert.ok(statsHtml.indexOf('src="config.js"') < statsHtml.indexOf('src="stats.js"'));
+
+		const statsModuleResponse = await fetch(`${baseUrl}/statsData.js`);
+		assert.equal(statsModuleResponse.status, 200);
+		assert.match(await statsModuleResponse.text(), /export function summarizeEntries/);
 	});
 });
 

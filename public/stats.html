@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<meta name="description" content="Stats page for Music Journal, a web application for tracking and analyzing music listening habits.">
-		<title>Sign in | Music Journal</title>
+		<meta name="description" content="Review mood patterns and listening intensity in Music Journal.">
+		<title>Statistics | Music Journal</title>
 		<link rel="stylesheet" href="styles.css">
 	</head>
 	<body>
@@ -16,53 +16,60 @@
 				</div>
 				<div class="header-actions">
 					<button class="secondary-button" id="clearLocalDataButton" type="button" disabled>Clear local data</button>
+					<a class="secondary-button" href="index.html">Journal</a>
 					<a class="secondary-button" id="signInLink" href="login.html">Sign in</a>
 					<div class="account-actions is-hidden" id="accountActions">
 						<span class="account-email" id="accountEmail"></span>
 						<button class="secondary-button" id="logoutButton" type="button">Sign out</button>
 					</div>
-					<div class="sync-pill" id="syncStatus" role="status">Checking connection…</div>
+					<div class="sync-pill has-pending" id="syncStatus" role="status">Loading statistics…</div>
 				</div>
 			</header>
 
-			<section>
-				<h2 style="margin-bottom: 16px;">Statistics</h2>
-				<div class="stats-grid">
-					<div>
-						<span id="averageIntensity">6.4</span>
-						<p>Average intensity</p>
+			<main class="stats-page" aria-labelledby="statsTitle">
+				<section class="stats-overview">
+					<div class="stats-heading">
+						<p class="eyebrow">Listening patterns</p>
+						<h2 id="statsTitle">Statistics</h2>
+						<p>Patterns from journal entries synced to your account.</p>
 					</div>
-					<div>
-						<span id="totalEntries">42</span>
-						<p>Total entries</p>
+					<div class="stats-grid" aria-label="Journal statistics">
+						<div>
+							<span id="averageIntensity">—</span>
+							<p>Average intensity</p>
+						</div>
+						<div>
+							<span id="totalEntries">0</span>
+							<p>Total entries</p>
+						</div>
+						<div>
+							<span id="topMood">—</span>
+							<p>Top mood</p>
+						</div>
 					</div>
-					<div>
-						<span id="favoriteGenre">—</span>
-						<p>Most played</p>
-					</div>
-				</div>
-			</section>
+					<p class="stats-message" id="statsMessage" role="status" aria-live="polite"></p>
+				</section>
 
-			<section style="margin-top: 32px;">
-				<div class="workspace">
-					<div class="history-panel">
+				<section class="stats-charts" aria-label="Journal charts">
+					<article class="history-panel stats-card">
 						<div class="section-heading">
 							<h2>Moods</h2>
 						</div>
-						<canvas id="mood-chart" style="width: 100%; max-height: 300px;"></canvas>
-					</div>
-					<div class="history-panel">
+						<canvas class="chart-canvas" id="moodChart" role="img" aria-label="Mood totals. No journal entries yet."></canvas>
+						<p class="chart-empty" id="moodChartEmpty">Add a journal entry to see your mood distribution.</p>
+					</article>
+					<article class="history-panel stats-card">
 						<div class="section-heading">
 							<h2>Intensity over time</h2>
 						</div>
-						<canvas id="intensity-chart" style="width: 100%; max-height: 300px;"></canvas>
-					</div>
-				</div>
-			</section>
-
+						<canvas class="chart-canvas" id="intensityChart" role="img" aria-label="Intensity over time. No dated journal entries yet."></canvas>
+						<p class="chart-empty" id="intensityChartEmpty">Add dated entries to see how intensity changes over time.</p>
+					</article>
+				</section>
+			</main>
 		</div>
 
+		<script src="config.js"></script>
 		<script type="module" src="stats.js"></script>
 	</body>
-
 </html>

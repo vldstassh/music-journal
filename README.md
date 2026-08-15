@@ -10,6 +10,7 @@ Vercel from the `trunk` branch; the repository root is the Vercel project root.
 - Keeps an anonymous browser journal before sign-in.
 - Creates private accounts and syncs each account's entries through MongoDB Atlas.
 - Retries locally queued authenticated entries without duplicating them.
+- Summarizes synced entries with mood distribution and intensity-over-time charts.
 - Exports the currently loaded journal as JSON.
 - Lets a user clear only Music Journal data cached on the current device. This signs an authenticated
   user out first and never deletes the account or synced MongoDB entries.

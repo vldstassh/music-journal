@@ -35,7 +35,7 @@ async function startServer() {
 	const httpServer = app.listen(config.port, "0.0.0.0", () => {
 		const address = httpServer.address();
 		const listeningPort = typeof address === "object" && address ? address.port : config.port;
-		console.log(`Music Journal listening on 0.0.0.0:${listeningPort}`);
+		console.log(`Music Journal listening att http://localhost:${listeningPort}`);
 	});
 
 	httpServer.on("error", async (error) => {

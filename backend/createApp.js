@@ -20,7 +20,10 @@ function parseAllowedOrigins(value) {
 		.filter(Boolean)
 		.map((origin) => {
 			const parsedOrigin = new URL(origin);
-			if (parsedOrigin.protocol !== "http:" && parsedOrigin.protocol !== "https:") {
+			if (
+				parsedOrigin.protocol !== "http:" &&
+				parsedOrigin.protocol !== "https:"
+			) {
 				throw new Error("CORS_ORIGIN values must use http or https");
 			}
 			return parsedOrigin.origin;
@@ -31,7 +34,9 @@ function createCorsMiddleware(allowedOrigins) {
 	return function setCorsHeaders(req, res, next) {
 		const origin = req.headers.origin;
 		const requestOrigin = `${req.protocol}://${req.get("host")}`;
-		const isAllowedOrigin = origin && (origin === requestOrigin || allowedOrigins.includes(origin));
+		const isAllowedOrigin =
+			origin &&
+			(origin === requestOrigin || allowedOrigins.includes(origin));
 
 		res.append("Vary", "Origin");
 
@@ -43,7 +48,10 @@ function createCorsMiddleware(allowedOrigins) {
 			res.setHeader("Access-Control-Allow-Origin", origin);
 			res.setHeader("Access-Control-Allow-Credentials", "true");
 			res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-			res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+			res.setHeader(
+				"Access-Control-Allow-Methods",
+				"GET,POST,PUT,DELETE,OPTIONS",
+			);
 		}
 
 		if (req.method === "OPTIONS") {
@@ -60,7 +68,9 @@ export function createApp({
 	sessionStore,
 	sessionSecret = "test-session-secret",
 	isProduction = false,
-	allowedOrigins = parseAllowedOrigins(process.env.CORS_ORIGIN || process.env.FRONTEND_ORIGIN),
+	allowedOrigins = parseAllowedOrigins(
+		process.env.CORS_ORIGIN || process.env.FRONTEND_ORIGIN,
+	),
 	cookieSameSite = process.env.COOKIE_SAMESITE || "lax",
 } = {}) {
 	if (!VALID_SAME_SITE_VALUES.has(cookieSameSite)) {
@@ -83,28 +93,32 @@ export function createApp({
 		res.status(200).json({ status: "ok" });
 	});
 
-	app.use(session({
-		name: SESSION_COOKIE_NAME,
-		secret: sessionSecret,
-		resave: false,
-		saveUninitialized: false,
-		store: sessionStore,
-		cookie: {
-			httpOnly: true,
-			secure: isProduction,
-			sameSite: cookieSameSite,
-			maxAge: 1000 * 60 * 60 * 24 * 7,
-		},
-	}));
+	app.use(
+		session({
+			name: SESSION_COOKIE_NAME,
+			secret: sessionSecret,
+			resave: false,
+			saveUninitialized: false,
+			store: sessionStore,
+			cookie: {
+				httpOnly: true,
+				secure: isProduction,
+				sameSite: cookieSameSite,
+				maxAge: 1000 * 60 * 60 * 24 * 7,
+			},
+		}),
+	);
 
 	app.use("/api", authRoutes);
 	app.use("/api", moodRoutes);
-	app.use(express.static(publicDirectory, {
-		dotfiles: "deny",
-		fallthrough: true,
-		index: "index.html",
-		maxAge: isProduction ? "1h" : 0,
-	}));
+	app.use(
+		express.static(publicDirectory, {
+			dotfiles: "deny",
+			fallthrough: true,
+			index: "index.html",
+			maxAge: isProduction ? "1h" : 0,
+		}),
+	);
 
 	app.use((req, res) => {
 		if (req.path.startsWith("/api/")) {
@@ -115,8 +129,14 @@ export function createApp({
 	});
 
 	app.use((error, _req, res, _next) => {
-		if (error instanceof SyntaxError && error.status === 400 && "body" in error) {
-			return res.status(400).json({ error: "Request body must contain valid JSON" });
+		if (
+			error instanceof SyntaxError &&
+			error.status === 400 &&
+			"body" in error
+		) {
+			return res
+				.status(400)
+				.json({ error: "Request body must contain valid JSON" });
 		}
 
 		console.error("Unhandled request error:", summarizeError(error));

@@ -56,6 +56,21 @@ export async function getMoods(req, res) {
 
 export async function editMood(req, res) {
 	try {
+		const validation = validateMoodEntry(req.body);
+		if (validation.error) {
+			return res.status(400).json({ error: validation.error });
+		}
+		const updatedMood = await editMoodModel(
+			req.params.id,
+			req.session.userId,
+			validation.value.mood,
+			validation.value.intensity,
+			validation.value.songTitle,
+			validation.value.artist,
+			validation.value.songLink,
+			validation.value.note,
+		);
+		return res.status(200).json({ data: serializeMood(updatedMood) });
 	} catch (error) {
 		return reportMoodError("edit", error, res);
 	}

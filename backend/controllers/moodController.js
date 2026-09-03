@@ -1,6 +1,7 @@
 import {
 	createMoodModel,
 	getMoodsModel,
+	editMoodModel,
 } from "../models/moodModel.js";
 import { summarizeError } from "../lib/logging.js";
 import { validateMoodEntry } from "../lib/validation.js";
@@ -50,5 +51,12 @@ export async function getMoods(req, res) {
 		return res.status(200).json({ data: moods.map(serializeMood) });
 	} catch (error) {
 		return reportMoodError("lookup", error, res);
+	}
+}
+
+export async function editMood(req, res) {
+	try {
+	} catch (error) {
+		return reportMoodError("edit", error, res);
 	}
 }

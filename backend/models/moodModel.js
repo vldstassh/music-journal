@@ -74,7 +74,8 @@ export async function getMoodsModel(userId) {
 	await ensureMoodIndexes(db);
 	const normalizedUserId = normalizeUserId(userId);
 
-	return db.collection("moods")
+	return db
+		.collection("moods")
 		.find({
 			userId: {
 				$in: [normalizedUserId, new ObjectId(normalizedUserId)],
@@ -82,4 +83,36 @@ export async function getMoodsModel(userId) {
 		})
 		.sort({ createdAt: -1 })
 		.toArray();
+}
+
+export async function editMoodModel(
+	id,
+	userId,
+	mood,
+	intensity,
+	songTitle,
+	artist,
+	songLink,
+	note,
+) {
+	const db = await connectDB();
+	const normalizedUserId = normalizeUserId(userId);
+	const result = await db.collection("moods").updateOne(
+		{
+			_id: id,
+			userId: normalizedUserId,
+		},
+		{
+			$set: {
+				mood: mood,
+				intensity: intensity,
+				songTitle: songTitle,
+				artist: artist,
+				songLink: songLink,
+				note: note,
+			},
+		},
+	);
+
+	return result;
 }

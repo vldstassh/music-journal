@@ -123,6 +123,15 @@ requires the database name to contain `test`. An advanced exception exists only 
 disposable database: set `ALLOW_NON_TEST_DB_NAME` to the exact acknowledgement constant defined in
 `backend/testSupport/databaseSafety.js`. Never use that override to target production.
 
+## Backend API
+The backend API has the following endpoints:
+
+| Method | Path | Description |
+| GET | api/moods | Retrieve all mood entries for the authenticated user |
+| POST | api/moods | Create a new mood entry |
+| PUT | api/moods/:id | Update an existing mood entry based on its ID |
+| DELETE | api/moods/:id | Delete a mood entry |
+
 ## Security and privacy
 
 - Passwords use bcrypt with cost 12. Signup requires eight characters; signup and login both reject

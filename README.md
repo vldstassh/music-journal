@@ -127,10 +127,11 @@ disposable database: set `ALLOW_NON_TEST_DB_NAME` to the exact acknowledgement c
 The backend API has the following endpoints:
 
 | Method | Path | Description |
-| GET | api/moods | Retrieve all mood entries for the authenticated user |
-| POST | api/moods | Create a new mood entry |
-| PUT | api/moods/:id | Update an existing mood entry based on its ID |
-| DELETE | api/moods/:id | Delete a mood entry |
+| --- | --- | --- |
+|`GET` | api/moods | Retrieve all mood entries for the authenticated user |
+|`POST` | api/moods | Create a new mood entry |
+|`PUT` | api/moods/:id | Update an existing mood entry based on its ID |
+|`DELETE` | api/moods/:id | Delete a mood entry |
 
 ## Security and privacy
 

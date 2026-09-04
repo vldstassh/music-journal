@@ -12,6 +12,20 @@ function normalizeUserId(userId) {
 	return userId.toString();
 }
 
+function normalizeMoodIds(moodIds) {
+	return moodIds.map((moodId) => {
+		if (moodId.startsWith("client:")) {
+			return moodId;
+		}
+
+		if (ObjectId.isValid(moodId)) {
+			return new ObjectId(moodId);
+		}
+
+		return moodId;
+	});
+}
+
 async function ensureMoodIndexes(db) {
 	if (!moodIndexesPromise) {
 		const moods = db.collection("moods");
@@ -115,4 +129,25 @@ export async function editMoodModel(
 	);
 
 	return result;
+}
+
+
+export async function deleteMoodsModel(userId, moodIds) {
+	const db = await connectDB();
+	await ensureMoodIndexes(db);
+
+	const normalizedUserId = normalizeUserId(userId);
+	const normalizedMoodIds = normalizeMoodIds(moodIds);
+
+	return db.collection("moods").deleteMany({
+		_id: {
+			$in: normalizedMoodIds,
+		},
+		userId: {
+			$in: [
+				normalizedUserId,
+				new ObjectId(normalizedUserId),
+			],
+		},
+	});
 }

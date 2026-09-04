@@ -2,6 +2,7 @@ import {
 	createMoodModel,
 	getMoodsModel,
 	editMoodModel,
+	deleteMoodsModel,
 } from "../models/moodModel.js";
 import { summarizeError } from "../lib/logging.js";
 import { validateMoodEntry } from "../lib/validation.js";
@@ -12,7 +13,10 @@ function reportMoodError(operation, error, res) {
 }
 
 function serializeMood({ userId: _userId, ...mood }) {
-	return mood;
+	return {
+		...mood,
+		_id: mood._id?.toString?.() ?? mood._id,
+	};
 }
 
 export async function createMood(req, res) {
@@ -73,5 +77,28 @@ export async function editMood(req, res) {
 		return res.status(200).json({ data: serializeMood(updatedMood) });
 	} catch (error) {
 		return reportMoodError("edit", error, res);
+	}
+}
+
+export async function deleteMoods(req, res) {
+	const { moodIds } = req.body || {};
+
+	if (!Array.isArray(moodIds) || moodIds.length === 0) {
+		return res.status(400).json({
+			error: "moodIds must be a non-empty array.",
+		});
+	}
+
+	try {
+		const result = await deleteMoodsModel(
+			req.session.userId,
+			moodIds,
+		);
+
+		return res.status(200).json({
+			deletedCount: result.deletedCount,
+		});
+	} catch (error) {
+		return reportMoodError("deletion", error, res);
 	}
 }

@@ -635,10 +635,12 @@ input[type="range"] {
 
 .deletebutton:hover {
 	background: rgba(238, 219, 179, 0.92);
+	color: var(--muted);
 }
 
 .editbutton:hover {
 	background: rgba(238, 219, 179, 0.92);
+	color: var(--muted);
 }
 
 

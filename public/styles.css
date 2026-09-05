@@ -633,7 +633,11 @@ input[type="range"] {
 }
 
 
-.entrybutton:hover {
+.deletebutton:hover {
+	background: rgba(238, 219, 179, 0.92);
+}
+
+.editbutton:hover {
 	background: rgba(238, 219, 179, 0.92);
 }
 

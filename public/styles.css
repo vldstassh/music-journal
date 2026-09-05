@@ -633,9 +633,10 @@ input[type="range"] {
 }
 
 
-.templatebutton:hover {
+.entrybutton:hover {
 	background: rgba(238, 219, 179, 0.92);
 }
+
 
 @media (max-width: 1024px) {
 	.app-shell {

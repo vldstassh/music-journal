@@ -595,6 +595,48 @@ input[type="range"] {
 	text-align: left;
 }
 
+
+.entrybutton {
+	display: flex;
+	gap: 10px;
+}
+
+.deletebutton {
+	align-items: center;
+	justify-content: center;
+	margin-left: auto;
+	min-height: 35px;	
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: rgba(250, 240, 210, 0.92);
+	padding: 0 10px;
+	color: var(--ink);
+	font-weight: 900;
+	text-decoration: none;
+	margin-top: 10px;
+
+}
+
+.editbutton {
+	align-items: center;
+	justify-content: center;
+	min-height: 35px;	
+	border: 1px solid var(--line);
+	border-radius: 8px;
+	background: rgba(250, 240, 210, 0.92);
+	padding: 0 10px;
+	color: var(--ink);
+	font-weight: 900;
+	text-decoration: none;
+	margin-top: 10px;
+
+}
+
+
+.templatebutton:hover {
+	background: rgba(238, 219, 179, 0.92);
+}
+
 @media (max-width: 1024px) {
 	.app-shell {
 		width: min(100% - 24px, 680px);

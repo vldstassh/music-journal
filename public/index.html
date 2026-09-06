@@ -102,7 +102,8 @@
 						</label>
 
 						<div class="form-actions">
-							<button class="primary-button" type="submit">Save entry</button>
+							<button class="primary-button" id="saveEntryButton" type="submit">Save entry</button>
+							<button class="secondary-button is-hidden" id="cancelEditButton" type="button">Cancel edit</button>
 							<p class="form-message" id="formMessage" aria-live="polite"></p>
 						</div>
 					</form>
@@ -164,8 +165,8 @@
 					<span class="entry-sync is-hidden">Waiting to sync</span>
 					<a class="entry-link" target="_blank" rel="noreferrer">Open song</a>
 					<div class="entrybutton">
-						<button class="deletebutton">Delete</button>
-						<button class="editbutton">Edit</button>
+						<button class="deletebutton" type="button">Delete</button>
+						<button class="editbutton" type="button">Edit</button>
 					</div>
 				</div>
 			</li>

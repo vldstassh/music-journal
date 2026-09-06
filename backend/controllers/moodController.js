@@ -67,13 +67,11 @@ export async function editMood(req, res) {
 		const updatedMood = await editMoodModel(
 			req.params.id,
 			req.session.userId,
-			validation.value.mood,
-			validation.value.intensity,
-			validation.value.songTitle,
-			validation.value.artist,
-			validation.value.songLink,
-			validation.value.note,
+			validation.value,
 		);
+		if (!updatedMood) {
+			return res.status(404).json({ error: "Entry not found" });
+		}
 		return res.status(200).json({ data: serializeMood(updatedMood) });
 	} catch (error) {
 		return reportMoodError("edit", error, res);
@@ -83,9 +81,12 @@ export async function editMood(req, res) {
 export async function deleteMoods(req, res) {
 	const { moodIds } = req.body || {};
 
-	if (!Array.isArray(moodIds) || moodIds.length === 0) {
+	if (
+		!Array.isArray(moodIds) || moodIds.length === 0 ||
+		moodIds.some((id) => typeof id !== "string" || !id.trim())
+	) {
 		return res.status(400).json({
-			error: "moodIds must be a non-empty array.",
+			error: "moodIds must be a non-empty array of non-empty strings.",
 		});
 	}
 
@@ -94,6 +95,9 @@ export async function deleteMoods(req, res) {
 			req.session.userId,
 			moodIds,
 		);
+		if (moodIds.length === 1 && result.deletedCount === 0) {
+			return res.status(404).json({ error: "Entry not found" });
+		}
 
 		return res.status(200).json({
 			deletedCount: result.deletedCount,

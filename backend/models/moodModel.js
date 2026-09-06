@@ -13,17 +13,14 @@ function normalizeUserId(userId) {
 }
 
 function normalizeMoodIds(moodIds) {
-	return moodIds.map((moodId) => {
-		if (moodId.startsWith("client:")) {
-			return moodId;
-		}
+	return moodIds.flatMap((moodId) => (
+		ObjectId.isValid(moodId) ? [moodId, new ObjectId(moodId)] : [moodId]
+	));
+}
 
-		if (ObjectId.isValid(moodId)) {
-			return new ObjectId(moodId);
-		}
-
-		return moodId;
-	});
+function userIdFilter(userId) {
+	const normalizedUserId = normalizeUserId(userId);
+	return { $in: [normalizedUserId, new ObjectId(normalizedUserId)] };
 }
 
 async function ensureMoodIndexes(db) {
@@ -86,14 +83,11 @@ export async function createMoodModel(moodData) {
 export async function getMoodsModel(userId) {
 	const db = await connectDB();
 	await ensureMoodIndexes(db);
-	const normalizedUserId = normalizeUserId(userId);
 
 	return db
 		.collection("moods")
 		.find({
-			userId: {
-				$in: [normalizedUserId, new ObjectId(normalizedUserId)],
-			},
+			userId: userIdFilter(userId),
 		})
 		.sort({ createdAt: -1 })
 		.toArray();
@@ -102,52 +96,38 @@ export async function getMoodsModel(userId) {
 export async function editMoodModel(
 	id,
 	userId,
-	mood,
-	intensity,
-	songTitle,
-	artist,
-	songLink,
-	note,
+	{ mood, intensity, songTitle, artist, songLink, note },
 ) {
 	const db = await connectDB();
-	const normalizedUserId = normalizeUserId(userId);
-	const result = await db.collection("moods").updateOne(
+	return db.collection("moods").findOneAndUpdate(
 		{
-			_id: id,
-			userId: normalizedUserId,
+			_id: { $in: normalizeMoodIds([id]) },
+			userId: userIdFilter(userId),
 		},
 		{
 			$set: {
-				mood: mood,
-				intensity: intensity,
-				songTitle: songTitle,
-				artist: artist,
-				songLink: songLink,
-				note: note,
+				mood,
+				intensity,
+				songTitle,
+				artist,
+				songLink,
+				note,
 			},
 		},
+		{ returnDocument: "after", includeResultMetadata: false },
 	);
-
-	return result;
 }
-
 
 export async function deleteMoodsModel(userId, moodIds) {
 	const db = await connectDB();
 	await ensureMoodIndexes(db);
 
-	const normalizedUserId = normalizeUserId(userId);
 	const normalizedMoodIds = normalizeMoodIds(moodIds);
 
 	return db.collection("moods").deleteMany({
 		_id: {
 			$in: normalizedMoodIds,
 		},
-		userId: {
-			$in: [
-				normalizedUserId,
-				new ObjectId(normalizedUserId),
-			],
-		},
+		userId: userIdFilter(userId),
 	});
 }

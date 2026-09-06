@@ -7,6 +7,7 @@ Vercel from the `trunk` branch; the repository root is the Vercel project root.
 ## What it does
 
 - Records a mood, intensity, song, artist, link, and note.
+- Edits entries in the journal form and deletes individual entries, including local and queued entries.
 - Keeps an anonymous browser journal before sign-in.
 - Creates private accounts and syncs each account's entries through MongoDB Atlas.
 - Retries locally queued authenticated entries without duplicating them.
@@ -106,8 +107,9 @@ npm test
 
 The MongoDB integration test is gated. It exercises the configured runtime, a real
 `connect-mongo` store in `sessions_v2`, signup, cookie authentication, session persistence and TTL
-indexing, journal persistence/idempotency, generic rejected-login behavior, logout deletion, and
-rejection of the old cookie. It creates UUID-scoped data and removes it afterward.
+indexing, journal persistence/idempotency, editing and deletion (including legacy IDs and ownership),
+generic rejected-login behavior, logout deletion, and rejection of the old cookie. It creates
+UUID-scoped data and removes it afterward.
 
 Run it only against a dedicated disposable test database:
 
@@ -131,7 +133,14 @@ The backend API has the following endpoints:
 |`GET` | api/moods | Retrieve all mood entries for the authenticated user |
 |`POST` | api/moods | Create a new mood entry |
 |`PUT` | api/moods/:id | Update an existing mood entry based on its ID |
-|`DELETE` | api/moods/:id | Delete a mood entry |
+|`DELETE` | api/moods/delete_that_song | Delete owned entries using `{ "moodIds": ["ENTRY_ID"] }` |
+
+Edit returns the updated entry as `{ data: entry }`. Edit and single-ID delete return 404 if the
+entry is missing or belongs to another account. Edits preserve the original timestamp and client ID.
+Use **Edit** on a card, then **Save changes** or **Cancel edit** in the journal form. Synced deletions
+require confirmation. Local and queued entries can be changed without a connection; queued edits
+retain their identity for the next sync. Synced edits and deletions require a working session and
+connection. Entry actions pause during synchronization, and automatic sync pauses while editing.
 
 ## Security and privacy
 

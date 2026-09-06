@@ -28,11 +28,17 @@ const signInLink = document.querySelector("#signInLink");
 const accountActions = document.querySelector("#accountActions");
 const accountEmail = document.querySelector("#accountEmail");
 const logoutButton = document.querySelector("#logoutButton");
+const entryTitle = document.querySelector("#entryTitle");
+const saveEntryButton = document.querySelector("#saveEntryButton");
+const cancelEditButton = document.querySelector("#cancelEditButton");
 
 let currentUser = null;
 let storageKey = ANONYMOUS_STORAGE_KEY;
 let entries = [];
 let syncPromise = null;
+let editingEntryId = null;
+let entryActionPending = false;
+let sessionInitializing = true;
 
 class ApiError extends Error {
 	constructor(message, status) {
@@ -193,6 +199,7 @@ function saveEntries() {
 function switchStorage(nextStorageKey) {
 	storageKey = nextStorageKey;
 	entries = loadEntries();
+	resetForm();
 	renderEntries();
 }
 
@@ -289,6 +296,13 @@ function renderEntries() {
 	timeline.replaceChildren();
 	filteredEntries.forEach((entry) => {
 		const item = template.content.cloneNode(true);
+		item.querySelector(".entry-card").dataset.entryId = entry.id;
+		const editButton = item.querySelector(".editbutton");
+		const deleteButton = item.querySelector(".deletebutton");
+		editButton.setAttribute("aria-label", `Edit ${entry.songTitle}`);
+		deleteButton.setAttribute("aria-label", `Delete ${entry.songTitle}`);
+		editButton.addEventListener("click", () => startEditing(entry.id));
+		deleteButton.addEventListener("click", () => deleteEntry(entry.id));
 		item.querySelector(".entry-date").textContent = formatDate(
 			entry.createdAt,
 		);
@@ -327,13 +341,144 @@ function renderEntries() {
 	}
 
 	renderStats();
+	updateEntryControls();
+}
+
+function isJournalBusy() {
+	return sessionInitializing || Boolean(syncPromise) || entryActionPending;
+}
+
+function updateEntryControls() {
+	const busy = isJournalBusy();
+	form.setAttribute("aria-busy", String(busy));
+	form.classList.toggle("is-editing", editingEntryId !== null);
+	const isEditing = editingEntryId !== null;
+	entryTitle.textContent = isEditing ? "Edit entry" : "Log a mood and song";
+	saveEntryButton.textContent = entryActionPending
+		? "Working…"
+		: isEditing ? "Save changes" : "Save entry";
+	cancelEditButton.classList.toggle("is-hidden", !isEditing);
+	form.querySelectorAll("input, textarea, button").forEach((control) => {
+		control.disabled = busy;
+	});
+	clearForm.disabled = busy;
+	logoutButton.disabled = busy;
+	clearLocalDataButton.disabled = busy;
+	timeline.querySelectorAll(".entry-card").forEach((card) => {
+		card.classList.toggle("is-editing", card.dataset.entryId === editingEntryId);
+		card.querySelectorAll("button").forEach((button) => {
+			button.disabled = busy;
+		});
+	});
+}
+
+function refreshSyncStatus() {
+	if (!currentUser) {
+		setSyncStatus("Local journal");
+		return;
+	}
+	const pendingCount = entries.filter((entry) => entry.pending).length;
+	setSyncStatus(
+		pendingCount ? `${pendingCount} waiting to sync` : "Synced",
+		pendingCount ? "pending" : "online",
+	);
 }
 
 function resetForm() {
+	editingEntryId = null;
 	form.reset();
 	intensity.value = "6";
 	intensityValue.textContent = "6";
 	form.elements.mood.value = "Joyful";
+	updateEntryControls();
+}
+
+function startEditing(id) {
+	if (isJournalBusy()) {
+		return;
+	}
+	const entry = entries.find((candidate) => candidate.id === id);
+	if (!entry) {
+		return;
+	}
+
+	editingEntryId = id;
+	for (const field of ["mood", "intensity", "songTitle", "artist", "songUrl", "note"]) {
+		form.elements[field].value = entry[field];
+	}
+	intensityValue.textContent = String(entry.intensity);
+	updateEntryControls();
+	setMessage("Edit the entry below, then save your changes.");
+	if (currentUser) {
+		setSyncStatus("Editing · sync paused", "pending");
+	}
+	form.scrollIntoView({ block: "nearest" });
+	form.elements.songTitle.focus();
+}
+
+function cancelEditing() {
+	if (isJournalBusy()) {
+		return;
+	}
+	resetForm();
+	setMessage("Edit cancelled");
+	refreshSyncStatus();
+	form.elements.songTitle.focus();
+	syncEntries();
+}
+
+function handleEntryActionError(error) {
+	if (error instanceof ApiError && error.status === 401) {
+		useAnonymousJournal("Session expired");
+		setMessage("Your session expired. Sign in to resume syncing.", { isError: true });
+		return;
+	}
+	setSyncStatus(error instanceof ApiError ? "Changes not saved" : "Offline", "pending");
+	setMessage(error.message || "Could not update this entry. Try again.", { isError: true });
+}
+
+async function deleteEntry(id) {
+	if (isJournalBusy()) {
+		return;
+	}
+	const entry = entries.find((candidate) => candidate.id === id);
+	if (!entry) {
+		return;
+	}
+	const isSynced = Boolean(currentUser) && !entry.pending;
+	if (isSynced && !window.confirm(`Permanently delete “${entry.songTitle}” from your journal? This cannot be undone.`)) {
+		return;
+	}
+
+	entryActionPending = true;
+	updateEntryControls();
+	try {
+		if (isSynced) {
+			setSyncStatus("Deleting entry…", "pending");
+			const result = await apiRequest("/api/moods/delete_that_song", {
+				method: "DELETE",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ moodIds: [id] }),
+			});
+			if (result?.deletedCount !== 1) {
+				throw new ApiError("Entry was not deleted. Refresh and try again.", 404);
+			}
+		}
+		entries = entries.filter((candidate) => candidate.id !== id);
+		saveEntries();
+		if (editingEntryId === id) {
+			resetForm();
+		}
+		renderEntries();
+		refreshSyncStatus();
+		setMessage(isSynced ? "Entry deleted" : "Entry deleted from this browser");
+	} catch (error) {
+		handleEntryActionError(error);
+	} finally {
+		entryActionPending = false;
+		updateEntryControls();
+		saveEntryButton.focus();
+	}
 }
 
 async function apiRequest(path, options = {}) {
@@ -391,6 +536,10 @@ async function syncEntries() {
 	if (syncPromise) {
 		return syncPromise;
 	}
+	// Keep refreshes and POST retries from overwriting an edit or resurrecting a deletion.
+	if (entryActionPending || editingEntryId !== null) {
+		return;
+	}
 
 	syncPromise = (async () => {
 		try {
@@ -403,9 +552,23 @@ async function syncEntries() {
 					headers: { "Content-Type": "application/json" },
 					body: entryRequestBody(pendingEntry),
 				});
-				const remoteEntry = normalizeEntry(result.data, {
+				let remoteEntry = normalizeEntry(result.data, {
 					pending: false,
 				});
+				// A retried POST can return an older record if its first response was lost.
+				// Apply any local edit to that same record before clearing the pending flag.
+				if (remoteEntry && entryRequestBody(remoteEntry) !== entryRequestBody(pendingEntry)) {
+					const updated = await apiRequest(`/api/moods/${encodeURIComponent(remoteEntry.id)}`, {
+						method: "PUT",
+						headers: { "Content-Type": "application/json" },
+						body: entryRequestBody(pendingEntry),
+					});
+					const updatedEntry = normalizeEntry(updated?.data, { pending: false });
+					if (!updatedEntry || updatedEntry.id !== remoteEntry.id) {
+						throw new ApiError("Invalid entry response", 500);
+					}
+					remoteEntry = updatedEntry;
+				}
 				if (remoteEntry) {
 					entries = entries.map((entry) =>
 						entry.id === pendingEntry.id ? remoteEntry : entry,
@@ -445,8 +608,10 @@ async function syncEntries() {
 		}
 	})().finally(() => {
 		syncPromise = null;
+		updateEntryControls();
 	});
 
+	updateEntryControls();
 	return syncPromise;
 }
 
@@ -473,6 +638,9 @@ async function initializeSession() {
 
 form.addEventListener("submit", async (event) => {
 	event.preventDefault();
+	if (isJournalBusy()) {
+		return;
+	}
 	setMessage("");
 
 	if (!form.reportValidity()) {
@@ -488,24 +656,61 @@ form.addEventListener("submit", async (event) => {
 		return;
 	}
 
-	const id = createId();
+	const originalEntry = entries.find((entry) => entry.id === editingEntryId);
+	if (editingEntryId !== null && !originalEntry) {
+		setMessage("This entry is no longer available. Cancel the edit and refresh.", { isError: true });
+		return;
+	}
+	const id = originalEntry?.id || createId();
 	const entry = normalizeEntry(
 		{
 			id,
-			clientId: id,
+			clientId: originalEntry ? originalEntry.clientId : id,
 			mood: formData.get("mood"),
 			intensity: formData.get("intensity"),
 			songTitle: formData.get("songTitle"),
 			artist: formData.get("artist"),
 			songUrl,
 			note: formData.get("note"),
-			createdAt: new Date().toISOString(),
+			createdAt: originalEntry?.createdAt || new Date().toISOString(),
 		},
-		{ pending: Boolean(currentUser) },
+		{ pending: originalEntry ? originalEntry.pending : Boolean(currentUser) },
 	);
 
 	if (!entry) {
 		setMessage("Check the entry fields and try again.", { isError: true });
+		return;
+	}
+
+	if (originalEntry) {
+		entryActionPending = true;
+		updateEntryControls();
+		try {
+			let updatedEntry = entry;
+			if (currentUser && !originalEntry.pending) {
+				setSyncStatus("Saving changes…", "pending");
+				const result = await apiRequest(`/api/moods/${encodeURIComponent(id)}`, {
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: entryRequestBody(entry),
+				});
+				updatedEntry = normalizeEntry(result?.data, { pending: false });
+				if (!updatedEntry || updatedEntry.id !== id) {
+					throw new ApiError("Invalid entry response. Refresh and try again.", 500);
+				}
+			}
+			entries = entries.map((candidate) => candidate.id === id ? updatedEntry : candidate);
+			saveEntries();
+			renderEntries();
+			resetForm();
+			refreshSyncStatus();
+			setMessage(currentUser && !entry.pending ? "Entry updated" : "Changes saved to this browser");
+		} catch (error) {
+			handleEntryActionError(error);
+		} finally {
+			entryActionPending = false;
+			updateEntryControls();
+		}
 		return;
 	}
 
@@ -524,7 +729,14 @@ intensity.addEventListener("input", () => {
 });
 
 moodFilter.addEventListener("change", renderEntries);
-clearForm.addEventListener("click", resetForm);
+clearForm.addEventListener("click", () => {
+	if (editingEntryId !== null) {
+		cancelEditing();
+	} else if (!isJournalBusy()) {
+		resetForm();
+	}
+});
+cancelEditButton.addEventListener("click", cancelEditing);
 
 exportEntries.addEventListener("click", () => {
 	if (!entries.length) {
@@ -544,18 +756,26 @@ exportEntries.addEventListener("click", () => {
 });
 
 logoutButton.addEventListener("click", async () => {
-	logoutButton.disabled = true;
+	if (isJournalBusy()) {
+		return;
+	}
+	entryActionPending = true;
+	updateEntryControls();
 	try {
 		await apiRequest("/api/logout", { method: "POST" });
 		useAnonymousJournal("Signed out · local journal");
 	} catch (error) {
 		setMessage(error.message || "Could not sign out", { isError: true });
 	} finally {
-		logoutButton.disabled = false;
+		entryActionPending = false;
+		updateEntryControls();
 	}
 });
 
 clearLocalDataButton.addEventListener("click", async () => {
+	if (isJournalBusy()) {
+		return;
+	}
 	const warning = currentUser
 		? "Clear Music Journal data cached on this device and sign out? Your account and synced journal entries in MongoDB will not be deleted. Any entries still waiting to sync will be lost."
 		: "Clear Music Journal data stored in this browser? This does not delete any account or synced journal entries in MongoDB.";
@@ -564,7 +784,8 @@ clearLocalDataButton.addEventListener("click", async () => {
 		return;
 	}
 
-	clearLocalDataButton.disabled = true;
+	entryActionPending = true;
+	updateEntryControls();
 	try {
 		if (currentUser) {
 			await apiRequest("/api/logout", { method: "POST" });
@@ -591,7 +812,8 @@ clearLocalDataButton.addEventListener("click", async () => {
 			{ isError: true },
 		);
 	} finally {
-		clearLocalDataButton.disabled = false;
+		entryActionPending = false;
+		updateEntryControls();
 	}
 });
 
@@ -608,5 +830,6 @@ updateMoodFilter();
 renderEntries();
 updateAccountUi();
 initializeSession().finally(() => {
-	clearLocalDataButton.disabled = false;
+	sessionInitializing = false;
+	updateEntryControls();
 });

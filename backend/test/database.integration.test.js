@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { randomUUID } from "node:crypto";
+import { ObjectId } from "mongodb";
 import { closeDB, connectDB } from "../connection/connection.js";
 import {
 	createConfiguredApp,
@@ -67,6 +68,7 @@ test("configured app persists authenticated sessions in sessions_v2", { skip: !s
 	let server;
 	let userId;
 	let sessionDocumentId;
+	const fixtureIds = [];
 
 	context.after(async () => {
 		if (server?.listening) {
@@ -76,6 +78,9 @@ test("configured app persists authenticated sessions in sessions_v2", { skip: !s
 
 		try {
 			const db = await connectDB();
+			if (fixtureIds.length) {
+				await db.collection("moods").deleteMany({ _id: { $in: fixtureIds } });
+			}
 			const user = await db.collection("users").findOne({ email });
 			const testUserId = userId || user?._id.toString();
 
@@ -190,6 +195,60 @@ test("configured app persists authenticated sessions in sessions_v2", { skip: !s
 	assert.equal(moods.response.status, 200);
 	assert.equal(moods.payload.data.length, 1);
 	assert.equal(moods.payload.data[0].songTitle, "Integration Test Song");
+
+	const updatedBody = {
+		...JSON.parse(moodBody), mood: "Calm", intensity: 4,
+		songTitle: "Edited Integration Song", note: "Updated by the live database test.",
+	};
+	const currentId = firstCreate.payload.data._id;
+	assert.match(currentId, /^client:/);
+	const edited = await jsonRequest(baseUrl, `/api/moods/${currentId}`, {
+		method: "PUT", cookie,
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(updatedBody),
+	});
+	assert.equal(edited.response.status, 200);
+	assert.deepEqual(edited.payload.data, {
+		...firstCreate.payload.data, ...updatedBody,
+	});
+	assert.equal(edited.payload.data.userId, undefined);
+	assert.equal(edited.payload.data.modifiedCount, undefined);
+	assert.deepEqual((await jsonRequest(baseUrl, "/api/moods", { cookie })).payload.data, [edited.payload.data]);
+
+	const legacyId = new ObjectId();
+	const foreignId = new ObjectId();
+	fixtureIds.push(legacyId, foreignId);
+	await db.collection("moods").insertMany([
+		{ ...JSON.parse(moodBody), _id: legacyId, userId: new ObjectId(userId), createdAt: new Date(firstCreate.payload.data.createdAt) },
+		{ ...JSON.parse(moodBody), _id: foreignId, userId: new ObjectId(), createdAt: new Date() },
+	]);
+	const legacyEdit = await jsonRequest(baseUrl, `/api/moods/${legacyId}`, {
+		method: "PUT", cookie, headers: { "Content-Type": "application/json" }, body: JSON.stringify(updatedBody),
+	});
+	assert.equal(legacyEdit.response.status, 200);
+	assert.equal(legacyEdit.payload.data._id, legacyId.toString());
+	assert.equal(legacyEdit.payload.data.songTitle, updatedBody.songTitle);
+	assert.equal(legacyEdit.payload.data.createdAt, firstCreate.payload.data.createdAt);
+
+	for (const id of [foreignId.toString(), new ObjectId().toString()]) {
+		const rejectedEdit = await jsonRequest(baseUrl, `/api/moods/${id}`, {
+			method: "PUT", cookie, headers: { "Content-Type": "application/json" }, body: JSON.stringify(updatedBody),
+		});
+		assert.equal(rejectedEdit.response.status, 404);
+		const rejectedDelete = await jsonRequest(baseUrl, "/api/moods/delete_that_song", {
+			method: "DELETE", cookie, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ moodIds: [id] }),
+		});
+		assert.equal(rejectedDelete.response.status, 404);
+	}
+	assert.equal((await db.collection("moods").findOne({ _id: foreignId })).songTitle, "Integration Test Song");
+	for (const id of [currentId, legacyId.toString()]) {
+		const deleted = await jsonRequest(baseUrl, "/api/moods/delete_that_song", {
+			method: "DELETE", cookie, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ moodIds: [id] }),
+		});
+		assert.equal(deleted.response.status, 200);
+		assert.equal(deleted.payload.deletedCount, 1);
+	}
+	assert.deepEqual((await jsonRequest(baseUrl, "/api/moods", { cookie })).payload.data, []);
 
 	for (const loginEmail of [email, `missing-${email}`]) {
 		const rejectedLogin = await jsonRequest(baseUrl, "/api/login", {

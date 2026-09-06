@@ -61,7 +61,8 @@ async function journal({ signedIn = false, initialEntries = [example], request, 
 	const ids = ["journalForm", "timeline", "entryTemplate", "emptyState", "emptyStateTitle", "emptyStateMessage",
 		"moodFilter", "intensity", "intensityValue", "formMessage", "syncStatus", "entryCount", "topMood",
 		"averageIntensity", "clearForm", "clearLocalDataButton", "exportEntries", "signInLink", "accountActions",
-		"accountEmail", "logoutButton", "entryTitle", "saveEntryButton", "cancelEditButton"];
+		"accountEmail", "logoutButton", "entryTitle", "saveEntryButton", "cancelEditButton",
+		"journalWorkspace", "playlistFooter", "playlistCount", "showMoreEntries"];
 	const elements = Object.fromEntries(ids.map((id) => [id, new Element()]));
 	const form = elements.journalForm;
 	form.elements = Object.fromEntries(["mood", "songTitle", "artist", "songUrl", "note"].map((name) => [name, new Element()]));
@@ -375,4 +376,118 @@ test("invalid successful mutation payloads never replace or remove an entry", as
 		assert.deepEqual(JSON.parse(app.storage.get(userKey)), [example]);
 		assert.ok(app.elements.formMessage.classes.has("is-error"));
 	}
+});
+
+function playlistEntries(count) {
+	return Array.from({ length: count }, (_, index) => ({
+		...example,
+		id: `entry-${index}`,
+		clientId: `entry-${index}`,
+		mood: index % 2 ? "Calm" : "Focused",
+		createdAt: new Date(Date.UTC(2026, 7, index + 1)).toISOString(),
+	}));
+}
+
+test("short playlists never show a Show more button", async () => {
+	for (const count of [0, 1, 3]) {
+		const app = await journal({ initialEntries: playlistEntries(count) });
+		assert.equal(app.elements.timeline.children.length, count);
+		assert.ok(app.elements.showMoreEntries.classes.has("is-hidden"));
+		assert.ok(app.elements.playlistFooter.classes.has("is-hidden"));
+		assert.ok(!app.elements.journalWorkspace.classes.has("is-playlist-expanded"));
+	}
+});
+
+test("Show more reveals 3 then 6 at a time in newest-first order until all entries are visible", async () => {
+	const initialEntries = playlistEntries(22);
+	const app = await journal({ initialEntries });
+	const initialCache = app.storage.get(anonymousKey);
+	const initialRequests = app.requests.length;
+	assert.equal(app.elements.timeline.children.length, 3);
+	assert.ok(!app.elements.showMoreEntries.classes.has("is-hidden"));
+	assert.equal(app.elements.playlistCount.textContent, "Showing 3 of 22 entries");
+	assert.equal(app.elements.entryCount.textContent, "22");
+	assert.ok(!app.elements.journalWorkspace.classes.has("is-playlist-expanded"));
+	for (const expectedCount of [9, 15, 21, 22]) {
+		const firstNewIndex = app.elements.timeline.children.length;
+		await app.elements.showMoreEntries.dispatch("click");
+		const cards = app.elements.timeline.children;
+		assert.equal(cards.length, expectedCount);
+		assert.deepEqual(cards.map((card) => card.dataset.entryId), initialEntries.slice().reverse().slice(0, expectedCount).map((entry) => entry.id));
+		assert.ok(cards[firstNewIndex].focused);
+		assert.equal(app.elements.showMoreEntries.classes.has("is-hidden"), expectedCount === 22);
+		assert.equal(app.elements.playlistCount.textContent, `Showing ${expectedCount} of 22 entries`);
+		assert.ok(app.elements.journalWorkspace.classes.has("is-playlist-expanded"));
+	}
+	assert.equal(app.storage.get(anonymousKey), initialCache);
+	assert.equal(app.requests.length, initialRequests);
+	assert.deepEqual(app.entries(), initialEntries);
+});
+
+test("Show more handles partial batches and exact six-entry boundaries", async () => {
+	for (const count of [4, 9, 10, 15]) {
+		const app = await journal({ initialEntries: playlistEntries(count) });
+		await app.elements.showMoreEntries.dispatch("click");
+		assert.equal(app.elements.timeline.children.length, Math.min(count, 9));
+		assert.equal(app.elements.showMoreEntries.classes.has("is-hidden"), count <= 9);
+		if (count > 9) {
+			await app.elements.showMoreEntries.dispatch("click");
+			assert.equal(app.elements.timeline.children.length, count);
+			assert.ok(app.elements.showMoreEntries.classes.has("is-hidden"));
+		}
+	}
+});
+
+test("mood filters reset the visible group and paginate only matching entries", async () => {
+	const app = await journal({ initialEntries: playlistEntries(14) });
+	await app.elements.showMoreEntries.dispatch("click");
+	app.elements.moodFilter.value = "Calm";
+	await app.elements.moodFilter.dispatch("change");
+	assert.equal(app.elements.timeline.children.length, 3);
+	assert.equal(app.elements.playlistCount.textContent, "Showing 3 of 7 entries");
+	assert.equal(app.elements.entryCount.textContent, "14");
+	assert.ok(!app.elements.journalWorkspace.classes.has("is-playlist-expanded"));
+	await app.elements.showMoreEntries.dispatch("click");
+	assert.equal(app.elements.timeline.children.length, 7);
+	assert.ok(app.elements.timeline.children.every((card) => card.querySelector(".entry-mood").textContent === "Calm"));
+	assert.ok(app.elements.showMoreEntries.classes.has("is-hidden"));
+	app.elements.moodFilter.value = "all";
+	await app.elements.moodFilter.dispatch("change");
+	assert.equal(app.elements.timeline.children.length, 3);
+	app.elements.moodFilter.value = "Sad";
+	await app.elements.moodFilter.dispatch("change");
+	assert.equal(app.elements.timeline.children.length, 0);
+	assert.ok(app.elements.playlistFooter.classes.has("is-hidden"));
+	assert.equal(app.elements.emptyStateTitle.textContent, "No matching entries");
+});
+
+test("expanded cards remain editable and deletable without collapsing the playlist", async () => {
+	const app = await journal({ initialEntries: playlistEntries(14) });
+	await app.elements.showMoreEntries.dispatch("click");
+	const id = app.elements.timeline.children[6].dataset.entryId;
+	await app.card(id).querySelector(".editbutton").dispatch("click");
+	app.form.elements.songTitle.value = "Edited expanded entry";
+	await app.form.dispatch("submit");
+	assert.equal(app.card(id).querySelector("h3").textContent, "Edited expanded entry");
+	assert.equal(app.elements.timeline.children.length, 9);
+	await app.card(id).querySelector(".deletebutton").dispatch("click");
+	assert.equal(app.card(id), undefined);
+	assert.equal(app.elements.timeline.children.length, 9);
+	assert.equal(app.elements.entryCount.textContent, "13");
+	assert.equal(app.elements.playlistCount.textContent, "Showing 9 of 13 entries");
+});
+
+test("background refresh preserves expansion and session expiry resets it", async () => {
+	let expired = false;
+	const app = await journal({ signedIn: true, initialEntries: playlistEntries(14), request: () => (
+		expired ? response({ error: "Authentication required" }, 401) : undefined
+	) });
+	await app.elements.showMoreEntries.dispatch("click");
+	await app.window.dispatch("online");
+	assert.equal(app.elements.timeline.children.length, 9);
+	expired = true;
+	await app.window.dispatch("online");
+	assert.equal(app.elements.timeline.children.length, 0);
+	assert.ok(!app.elements.journalWorkspace.classes.has("is-playlist-expanded"));
+	assert.ok(app.elements.showMoreEntries.classes.has("is-hidden"));
 });

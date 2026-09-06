@@ -6,6 +6,8 @@ const API_BASE =
 	getStoredValue("musicJournalApiBase") ||
 	"";
 const MOODS = ["Joyful", "Calm", "Focused", "Anxious", "Sad", "Angry"];
+const INITIAL_VISIBLE_ENTRIES = 3;
+const MORE_ENTRIES_COUNT = 6;
 
 const form = document.querySelector("#journalForm");
 const timeline = document.querySelector("#timeline");
@@ -31,6 +33,10 @@ const logoutButton = document.querySelector("#logoutButton");
 const entryTitle = document.querySelector("#entryTitle");
 const saveEntryButton = document.querySelector("#saveEntryButton");
 const cancelEditButton = document.querySelector("#cancelEditButton");
+const journalWorkspace = document.querySelector("#journalWorkspace");
+const playlistFooter = document.querySelector("#playlistFooter");
+const playlistCount = document.querySelector("#playlistCount");
+const showMoreEntries = document.querySelector("#showMoreEntries");
 
 let currentUser = null;
 let storageKey = ANONYMOUS_STORAGE_KEY;
@@ -39,6 +45,7 @@ let syncPromise = null;
 let editingEntryId = null;
 let entryActionPending = false;
 let sessionInitializing = true;
+let visibleEntryLimit = INITIAL_VISIBLE_ENTRIES;
 
 class ApiError extends Error {
 	constructor(message, status) {
@@ -199,6 +206,7 @@ function saveEntries() {
 function switchStorage(nextStorageKey) {
 	storageKey = nextStorageKey;
 	entries = loadEntries();
+	visibleEntryLimit = INITIAL_VISIBLE_ENTRIES;
 	resetForm();
 	renderEntries();
 }
@@ -292,11 +300,14 @@ function renderEntries() {
 			(entry) => selectedMood === "all" || entry.mood === selectedMood,
 		)
 		.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+	const visibleEntries = filteredEntries.slice(0, visibleEntryLimit);
 
 	timeline.replaceChildren();
-	filteredEntries.forEach((entry) => {
+	visibleEntries.forEach((entry) => {
 		const item = template.content.cloneNode(true);
-		item.querySelector(".entry-card").dataset.entryId = entry.id;
+		const card = item.querySelector(".entry-card");
+		card.dataset.entryId = entry.id;
+		card.setAttribute("tabindex", "-1");
 		const editButton = item.querySelector(".editbutton");
 		const deleteButton = item.querySelector(".deletebutton");
 		editButton.setAttribute("aria-label", `Edit ${entry.songTitle}`);
@@ -328,6 +339,14 @@ function renderEntries() {
 
 		timeline.append(item);
 	});
+
+	const remainingCount = filteredEntries.length - visibleEntries.length;
+	playlistFooter.classList.toggle("is-hidden", filteredEntries.length <= INITIAL_VISIBLE_ENTRIES);
+	playlistCount.textContent = `Showing ${visibleEntries.length} of ${filteredEntries.length} entries`;
+	showMoreEntries.classList.toggle("is-hidden", remainingCount === 0);
+	const nextCount = Math.min(MORE_ENTRIES_COUNT, remainingCount);
+	showMoreEntries.setAttribute("aria-label", `Show ${nextCount} more journal ${nextCount === 1 ? "entry" : "entries"}`);
+	journalWorkspace.classList.toggle("is-playlist-expanded", visibleEntries.length > INITIAL_VISIBLE_ENTRIES);
 
 	const hasVisibleEntries = filteredEntries.length > 0;
 	emptyState.classList.toggle("is-hidden", hasVisibleEntries);
@@ -364,6 +383,7 @@ function updateEntryControls() {
 	clearForm.disabled = busy;
 	logoutButton.disabled = busy;
 	clearLocalDataButton.disabled = busy;
+	showMoreEntries.disabled = busy;
 	timeline.querySelectorAll(".entry-card").forEach((card) => {
 		card.classList.toggle("is-editing", card.dataset.entryId === editingEntryId);
 		card.querySelectorAll("button").forEach((button) => {
@@ -728,7 +748,20 @@ intensity.addEventListener("input", () => {
 	intensityValue.textContent = intensity.value;
 });
 
-moodFilter.addEventListener("change", renderEntries);
+moodFilter.addEventListener("change", () => {
+	visibleEntryLimit = INITIAL_VISIBLE_ENTRIES;
+	renderEntries();
+});
+showMoreEntries.addEventListener("click", () => {
+	if (isJournalBusy()) {
+		return;
+	}
+	const previousCount = timeline.children.length;
+	visibleEntryLimit += MORE_ENTRIES_COUNT;
+	renderEntries();
+	// Move keyboard focus into the newly revealed group, including the final group.
+	timeline.children[previousCount]?.focus();
+});
 clearForm.addEventListener("click", () => {
 	if (editingEntryId !== null) {
 		cancelEditing();
@@ -799,6 +832,7 @@ clearLocalDataButton.addEventListener("click", async () => {
 
 		storageKey = ANONYMOUS_STORAGE_KEY;
 		entries = [];
+		visibleEntryLimit = INITIAL_VISIBLE_ENTRIES;
 		moodFilter.value = "all";
 		resetForm();
 		renderEntries();

@@ -26,7 +26,7 @@
 				</div>
 			</header>
 
-			<main class="workspace">
+			<main class="workspace" id="journalWorkspace">
 				<section class="entry-panel" aria-labelledby="entryTitle">
 					<div class="section-heading">
 						<div>
@@ -147,6 +147,10 @@
 					</div>
 
 					<ol class="timeline" id="timeline" aria-label="Saved journal entries"></ol>
+					<div class="playlist-footer is-hidden" id="playlistFooter">
+						<p class="playlist-count" id="playlistCount" role="status" aria-live="polite"></p>
+						<button class="secondary-button is-hidden" id="showMoreEntries" type="button" aria-controls="timeline">Show more</button>
+					</div>
 				</section>
 			</main>
 		</div>

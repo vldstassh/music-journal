@@ -230,7 +230,31 @@ h2 {
 	display: grid;
 	grid-template-columns: minmax(320px, 0.88fr) minmax(380px, 1.12fr);
 	gap: 22px;
+	align-items: stretch;
+}
+
+.workspace.is-playlist-expanded {
 	align-items: start;
+}
+
+.workspace > .history-panel {
+	display: flex;
+	flex-direction: column;
+}
+
+.playlist-footer {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 10px;
+	margin-top: auto;
+	padding-top: 18px;
+}
+
+.playlist-count {
+	margin: 0;
+	color: var(--muted);
+	font-size: 0.86rem;
 }
 
 .entry-panel,
